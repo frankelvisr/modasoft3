@@ -57,41 +57,53 @@
     }
 
     // Funciones para manejar eliminación
-    function confirmarEliminacion() {
-        const id = document.getElementById('eliminarId').value;
-        const tipo = document.getElementById('eliminarTipo').value;
-        
-        // Primero verificar si el elemento está siendo utilizado
-        fetch('/api/' + tipo + '/validar-eliminacion/' + id)
-        .then(response => response.json())
-        .then(data => {
-            if (data.puedeEliminar) {
-                // Si no está siendo utilizado, proceder con la eliminación
-                return fetch('/api/' + tipo + '/' + id, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-            } else {
-                throw new Error(data.message || 'No se puede eliminar porque está siendo utilizado por uno o más productos.');
+    async function confirmarEliminacion() {
+        try {
+            const id = document.getElementById('eliminarId').value;
+            const tipo = document.getElementById('eliminarTipo').value;
+            
+            // Primero verificar si el elemento está siendo utilizado
+            const validacionRes = await fetch('/api/' + tipo + '/validar-eliminacion/' + id);
+            if (!validacionRes.ok) {
+                throw new Error('Error al validar la eliminación');
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                // Recargar la lista correspondiente
-                cargarLista(tipo);
-                cerrarModal('modalConfirmarEliminar');
-            } else {
-                throw new Error(data.message || 'Error al eliminar el elemento');
+            const validacionData = await validacionRes.json();
+            
+            if (!validacionData.puedeEliminar) {
+                throw new Error(validacionData.message || 'No se puede eliminar porque está siendo utilizado por uno o más productos.');
             }
-        })
-        .catch(error => {
+            
+            // Si no está siendo utilizado, proceder con la eliminación
+            const deleteRes = await fetch('/api/' + tipo + '/' + id, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!deleteRes.ok) {
+                throw new Error('Error al eliminar el elemento');
+            }
+            
+            const deleteData = await deleteRes.json();
+            if (!deleteData.success) {
+                throw new Error(deleteData.message || 'Error al eliminar el elemento');
+            }
+            
+            // Si todo salió bien
+            if (tipo === 'categorias') {
+                cargarCategorias();
+            } else if (tipo === 'tallas') {
+                cargarTallas();
+            } else if (tipo === 'proveedores') {
+                cargarProveedores();
+            }
+            cerrarModal('modalConfirmarEliminar');
+        } catch (error) {
             console.error('Error:', error);
             alert(error.message || 'Error al procesar la solicitud');
             cerrarModal('modalConfirmarEliminar');
-        });
+        }
     }
 
     function mostrarConfirmacion(id, tipo, nombre) {
@@ -134,65 +146,126 @@
     }
 
     // Manejadores de formularios de edición
-    document.getElementById('formEditarCategoria').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const id = document.getElementById('editCatId').value;
-        const data = {
-            nombre: document.getElementById('editCatNombre').value
-        };
-        
-        actualizarElemento('categorias', id, data);
-    });
+    window.addEventListener('load', function() {
+        // Formulario de Editar Categoría
+        const formEditarCategoria = document.getElementById('formEditarCategoria');
+        if (formEditarCategoria) {
+            formEditarCategoria.onsubmit = async function(e) {
+                e.preventDefault();
+                try {
+                    const id = document.getElementById('editCatId').value;
+                    const nombre = document.getElementById('editCatNombre').value.trim();
+                    
+                    if (!nombre) {
+                        alert('El nombre es requerido');
+                        return;
+                    }
 
-    document.getElementById('formEditarTalla').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const id = document.getElementById('editTallaId').value;
-        const data = {
-            nombre: document.getElementById('editTallaNombre').value,
-            ajuste: document.getElementById('editTallaAjuste').value,
-            pecho: document.getElementById('editTallaPecho').value,
-            cintura: document.getElementById('editTallaCintura').value,
-            cadera: document.getElementById('editTallaCadera').value,
-            largo: document.getElementById('editTallaLargo').value
-        };
-        
-        actualizarElemento('tallas', id, data);
-    });
+                    const response = await fetch('/api/categorias/' + id, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ nombre })
+                    });
 
-    document.getElementById('formEditarProveedor').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const id = document.getElementById('editProvId').value;
-        const data = {
-            nombre: document.getElementById('editProvNombre').value,
-            contacto: document.getElementById('editProvContacto').value,
-            telefono: document.getElementById('editProvTelefono').value
-        };
-        
-        actualizarElemento('proveedores', id, data);
-    });
+                    const data = await response.json();
+                    if (data.success) {
+                        cerrarModal('modalEditarCategoria');
+                        cargarCategorias();
+                    } else {
+                        throw new Error(data.message || 'Error al actualizar categoría');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(error.message || 'Error al procesar la solicitud');
+                }
+            };
+        }
 
-    function actualizarElemento(tipo, id, data) {
-        fetch('/api/' + tipo + '/' + id, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                cerrarModal('modalEditar' + tipo.charAt(0).toUpperCase() + tipo.slice(1, -1));
-                cargarLista(tipo);
-            } else {
-                alert('Error al actualizar: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error al procesar la solicitud');
-        });
-    }
+        // Formulario de Editar Talla
+        const formEditarTalla = document.getElementById('formEditarTalla');
+        if (formEditarTalla) {
+            formEditarTalla.onsubmit = async function(e) {
+                e.preventDefault();
+                try {
+                    const id = document.getElementById('editTallaId').value;
+                    const data = {
+                        nombre: document.getElementById('editTallaNombre').value.trim(),
+                        ajuste: document.getElementById('editTallaAjuste').value,
+                        pecho: document.getElementById('editTallaPecho').value || null,
+                        cintura: document.getElementById('editTallaCintura').value || null,
+                        cadera: document.getElementById('editTallaCadera').value || null,
+                        largo: document.getElementById('editTallaLargo').value || null
+                    };
+
+                    if (!data.nombre || !data.ajuste) {
+                        alert('El nombre y el ajuste son requeridos');
+                        return;
+                    }
+
+                    const response = await fetch('/api/tallas/' + id, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+                    if (responseData.success) {
+                        cerrarModal('modalEditarTalla');
+                        cargarTallas();
+                    } else {
+                        throw new Error(responseData.message || 'Error al actualizar talla');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(error.message || 'Error al procesar la solicitud');
+                }
+            };
+        }
+
+        // Formulario de Editar Proveedor
+        const formEditarProveedor = document.getElementById('formEditarProveedor');
+        if (formEditarProveedor) {
+            formEditarProveedor.onsubmit = async function(e) {
+                e.preventDefault();
+                try {
+                    const id = document.getElementById('editProvId').value;
+                    const data = {
+                        nombre: document.getElementById('editProvNombre').value.trim(),
+                        contacto: document.getElementById('editProvContacto').value.trim(),
+                        telefono: document.getElementById('editProvTelefono').value.trim()
+                    };
+
+                    if (!data.nombre) {
+                        alert('El nombre es requerido');
+                        return;
+                    }
+
+                    const response = await fetch('/api/proveedores/' + id, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+                    if (responseData.success) {
+                        cerrarModal('modalEditarProveedor');
+                        cargarProveedores();
+                    } else {
+                        throw new Error(responseData.message || 'Error al actualizar proveedor');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert(error.message || 'Error al procesar la solicitud');
+                }
+            };
+        }
+    });
 
     // Función para recargar listas (debe implementarse en cliente.js o aquí)
     function cargarLista(tipo) {
