@@ -1,15 +1,20 @@
 /* -------------------------------------------------------------------------- */
-/* BASE Y TIPOGRAFÍA                               */
+/* VARIABLES Y BASE                               */
 /* -------------------------------------------------------------------------- */
 :root {
-    --color-primary: #3b82f6; /* Blue 500 */
-    --color-secondary: #f97316; /* Orange 500 */
-    --color-success: #10b981; /* Green 500 */
-    --color-error: #ef4444; /* Red 500 */
-    --color-bg-light: #f9fafb; /* Gray 50 */
-    --color-card-bg: #ffffff;
-    --color-text: #1f2937; /* Gray 800 */
-    --color-border: #e5e7eb; /* Gray 200 */
+    --color-primary: #2563eb;
+    --color-secondary: #f97316;
+    --color-success: #059669;
+    --color-error: #dc2626;
+    --color-bg: #f8fafc;
+    --color-surface: #ffffff;
+    --color-text: #1e293b;
+    --color-text-light: #64748b;
+    --color-border: #e2e8f0;
+    --border-radius: 8px;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --transition: all 0.2s ease;
     --padding-base: 1.5rem;
 }
 
@@ -20,8 +25,8 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
-    background-color: var(--color-bg-light);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-bg);
     color: var(--color-text);
     line-height: 1.6;
     min-height: 100vh;
@@ -64,10 +69,15 @@ h3 {
 }
 
 .card {
-    background-color: var(--color-card-bg);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: var(--color-surface);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
     padding: var(--padding-base);
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
 }
 
 .section-title {
@@ -117,7 +127,8 @@ h3 {
     display: flex;
     border-bottom: 2px solid var(--color-border);
     margin-bottom: var(--padding-base);
-    overflow-x: auto; /* Permite scroll horizontal en móviles */
+    overflow-x: auto;
+    gap: 0.5rem;
 }
 
 .tab-nav button {
@@ -240,22 +251,40 @@ h3 {
     flex-direction: column;
     gap: 0.5rem;
     margin-top: 1rem;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.list::-webkit-scrollbar-track {
+    background: var(--color-bg);
+    border-radius: 3px;
+}
+
+.list::-webkit-scrollbar-thumb {
+    background: var(--color-text-light);
+    border-radius: 3px;
 }
 
 .list .item {
-    background-color: var(--color-card-bg);
+    background-color: var(--color-surface);
     padding: 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 8px;
+    border-radius: var(--border-radius);
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 0.95rem;
-    transition: background-color 0.1s;
+    transition: var(--transition);
 }
 
 .list .item:hover {
-    background-color: #f9fafb;
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
 }
 
 .list .item.error {
@@ -299,47 +328,57 @@ h3 {
     color:var(--color-primary);
 }
 
-/* Contenedores con scroll para listas (profesional y responsivo) */
-.scroll-list{
-    max-height:40vh; /* limita altura y permite scroll */
-    min-height:80px;
-    overflow-y:auto;
-    padding-right:0.5rem;
-    -webkit-overflow-scrolling: touch; /* smooth scroll en iOS */
+/* -------------------------------------------------------------------------- */
+/* MODAL                                    */
+/* -------------------------------------------------------------------------- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
 }
 
-/* Acciones dentro de cada item (Editar / Eliminar) */
-.list .item .actions{
-    display:flex;
-    gap:0.5rem;
-    align-items:center;
-    margin-left:1rem;
-}
-.list .item .actions .btn{
-    padding:0.4rem 0.6rem;
-    font-size:0.85rem;
-    width:auto;
-    border-radius:6px;
-}
-.list .item{
-    align-items:flex-start; /* permite multiline y acciones verticalmente alineadas */
+.modal.show {
+    display: flex;
+    animation: fadeIn 0.3s ease-out;
 }
 
-/* Mejora visual: mostrar la info principal a la izquierda y acciones a la derecha en pantallas grandes */
-.list .item{
-    display:flex;
-    justify-content:space-between;
-    gap:1rem;
+.modal-content {
+    background: var(--color-surface);
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-md);
+    animation: slideIn 0.3s ease-out;
 }
 
-/* Ajustes para botones pequeños en móviles */
-@media (max-width: 767px){
-    .list .item{ flex-direction:column; align-items:stretch; }
-    .list .item .actions{ justify-content:flex-end; margin-top:0.5rem; }
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Acciones dentro de cada item */
+.list .item .actions {
+    display: flex;
+    gap: 0.5rem;
+    opacity: 0.8;
+}
+
+.list .item:hover .actions {
+    opacity: 1;
 }
 
 /* Separador visual para secciones de catálogo */
-.catalog-section{ padding-top:0.5rem; }
+.catalog-section { 
+    padding-top: 0.5rem;
+}
 
 /* Fin añadidos para Catálogos y listas */
 

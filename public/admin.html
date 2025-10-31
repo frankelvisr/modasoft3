@@ -61,11 +61,20 @@
         const id = document.getElementById('eliminarId').value;
         const tipo = document.getElementById('eliminarTipo').value;
         
-        // Llamada al servidor según el tipo
-        fetch('/api/' + tipo + '/' + id, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
+        // Primero verificar si el elemento está siendo utilizado
+        fetch('/api/' + tipo + '/validar-eliminacion/' + id)
+        .then(response => response.json())
+        .then(data => {
+            if (data.puedeEliminar) {
+                // Si no está siendo utilizado, proceder con la eliminación
+                return fetch('/api/' + tipo + '/' + id, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+            } else {
+                throw new Error(data.message || 'No se puede eliminar porque está siendo utilizado por uno o más productos.');
             }
         })
         .then(response => response.json())
@@ -75,12 +84,13 @@
                 cargarLista(tipo);
                 cerrarModal('modalConfirmarEliminar');
             } else {
-                alert('Error al eliminar: ' + data.message);
+                throw new Error(data.message || 'Error al eliminar el elemento');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error al procesar la solicitud');
+            alert(error.message || 'Error al procesar la solicitud');
+            cerrarModal('modalConfirmarEliminar');
         });
     }
 
