@@ -78,10 +78,17 @@ app.post('/api/logout', (req, res) => {
 app.delete('/api/categorias/:id', requiereRol('administrador'), async (req, res) => {
   const id = req.params.id;
   try {
+    // Verificar uso en Productos
+    const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Productos WHERE id_categoria = ?', [id]);
+    const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
+    if (total > 0) {
+      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} producto(s) usan esta categoría` });
+    }
     await pool.query('DELETE FROM Categorias WHERE id_categoria = ?', [id]);
     res.json({ ok: true });
   } catch (e) {
-    res.json({ ok: false });
+    console.error('Error eliminar categoria:', e.message);
+    res.status(500).json({ ok: false, message: 'Error del servidor al eliminar categoría' });
   }
 });
 app.get('/api/categorias', requiereRol('administrador'), async (req, res) => {
@@ -90,6 +97,20 @@ app.get('/api/categorias', requiereRol('administrador'), async (req, res) => {
     res.json({ categorias: rows });
   } catch (e) {
     res.status(500).json({ categorias: [] });
+  }
+});
+// Editar categoría (PUT)
+app.put('/api/categorias/:id', requiereRol('administrador'), async (req, res) => {
+  const id = req.params.id;
+  const { nombre } = req.body;
+  if (!nombre || nombre.trim() === '') return res.status(400).json({ success: false, message: 'Nombre requerido' });
+  try {
+    const [result] = await pool.query('UPDATE Categorias SET nombre = ? WHERE id_categoria = ?', [nombre.trim(), id]);
+    if (result.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
+  } catch (e) {
+    console.error('Error editar categoria:', e.message);
+    return res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });
 app.post('/api/categorias', requiereRol('administrador'), async (req, res) => {
@@ -107,10 +128,17 @@ app.post('/api/categorias', requiereRol('administrador'), async (req, res) => {
 app.delete('/api/proveedores/:id', requiereRol('administrador'), async (req, res) => {
   const id = req.params.id;
   try {
+    // Verificar uso en Productos
+    const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Productos WHERE id_proveedor = ?', [id]);
+    const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
+    if (total > 0) {
+      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} producto(s) usan este proveedor` });
+    }
     await pool.query('DELETE FROM Proveedores WHERE id_proveedor = ?', [id]);
     res.json({ ok: true });
   } catch (e) {
-    res.json({ ok: false });
+    console.error('Error eliminar proveedor:', e.message);
+    res.status(500).json({ ok: false, message: 'Error del servidor al eliminar proveedor' });
   }
 });
 // Tallas
@@ -132,13 +160,65 @@ app.post('/api/tallas', requiereRol('administrador'), async (req, res) => {
     res.json({ ok: false });
   }
 });
+// Editar talla (PUT)
+app.put('/api/tallas/:id', requiereRol('administrador'), async (req, res) => {
+  const id = req.params.id;
+  const { nombre, ajuste, pecho, cintura, cadera, largo } = req.body;
+  if (!nombre || !ajuste) return res.status(400).json({ success: false, message: 'Nombre y ajuste requeridos' });
+  try {
+    const [result] = await pool.query('UPDATE Tallas SET nombre = ?, ajuste = ?, pecho = ?, cintura = ?, cadera = ?, largo = ? WHERE id_talla = ?', [nombre, ajuste, pecho || null, cintura || null, cadera || null, largo || null, id]);
+    if (result.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Talla no encontrada' });
+  } catch (e) {
+    console.error('Error editar talla:', e.message);
+    return res.status(500).json({ success: false, message: 'Error del servidor' });
+  }
+});
 app.delete('/api/tallas/:id', requiereRol('administrador'), async (req, res) => {
   const id = req.params.id;
   try {
+    // Verificar uso en Inventario
+    const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Inventario WHERE id_talla = ?', [id]);
+    const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
+    if (total > 0) {
+      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} registro(s) en inventario usan esta talla` });
+    }
     await pool.query('DELETE FROM Tallas WHERE id_talla = ?', [id]);
     res.json({ ok: true });
   } catch (e) {
-    res.json({ ok: false });
+    console.error('Error eliminar talla:', e.message);
+    res.status(500).json({ ok: false, message: 'Error del servidor al eliminar talla' });
+  }
+});
+
+// Endpoint genérico para validar eliminación (usado por el front-end)
+app.get('/api/:tipo/validar-eliminacion/:id', requiereRol('administrador'), async (req, res) => {
+  const tipo = req.params.tipo;
+  const id = req.params.id;
+  try {
+    let query;
+    switch (tipo) {
+      case 'categorias':
+        query = 'SELECT COUNT(*) as total FROM Productos WHERE id_categoria = ?';
+        break;
+      case 'tallas':
+        query = 'SELECT COUNT(*) as total FROM Inventario WHERE id_talla = ?';
+        break;
+      case 'proveedores':
+        query = 'SELECT COUNT(*) as total FROM Productos WHERE id_proveedor = ?';
+        break;
+      default:
+        return res.status(400).json({ puedeEliminar: false, message: 'Tipo no válido' });
+    }
+    const [cnt] = await pool.query(query, [id]);
+    const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
+    if (total > 0) {
+      return res.json({ puedeEliminar: false, message: `No se puede eliminar: ${total} producto(s) usan este elemento`, total });
+    }
+    return res.json({ puedeEliminar: true, message: 'El elemento no está en uso', total: 0 });
+  } catch (e) {
+    console.error('Error validar-eliminacion:', e.message);
+    return res.status(500).json({ puedeEliminar: false, message: 'Error del servidor al validar eliminación' });
   }
 });
 app.get('/api/proveedores', requiereRol('administrador'), async (req, res) => {
@@ -147,6 +227,20 @@ app.get('/api/proveedores', requiereRol('administrador'), async (req, res) => {
     res.json({ proveedores: rows });
   } catch (e) {
     res.status(500).json({ proveedores: [] });
+  }
+});
+// Editar proveedor (PUT)
+app.put('/api/proveedores/:id', requiereRol('administrador'), async (req, res) => {
+  const id = req.params.id;
+  const { nombre, contacto, telefono } = req.body;
+  if (!nombre || nombre.trim() === '') return res.status(400).json({ success: false, message: 'Nombre requerido' });
+  try {
+    const [result] = await pool.query('UPDATE Proveedores SET nombre = ?, contacto = ?, telefono = ? WHERE id_proveedor = ?', [nombre.trim(), contacto || null, telefono || null, id]);
+    if (result.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Proveedor no encontrado' });
+  } catch (e) {
+    console.error('Error editar proveedor:', e.message);
+    return res.status(500).json({ success: false, message: 'Error del servidor' });
   }
 });
 app.post('/api/proveedores', requiereRol('administrador'), async (req, res) => {
