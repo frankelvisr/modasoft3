@@ -82,10 +82,11 @@ app.delete('/api/categorias/:id', requiereRol('administrador'), async (req, res)
     const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Productos WHERE id_categoria = ?', [id]);
     const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
     if (total > 0) {
-      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} producto(s) usan esta categoría` });
+      return res.status(400).json({ success: false, message: `No se puede eliminar: ${total} producto(s) usan esta categoría` });
     }
-    await pool.query('DELETE FROM Categorias WHERE id_categoria = ?', [id]);
-    res.json({ ok: true });
+    const [delRes] = await pool.query('DELETE FROM Categorias WHERE id_categoria = ?', [id]);
+    if (delRes.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
   } catch (e) {
     console.error('Error eliminar categoria:', e.message);
     res.status(500).json({ ok: false, message: 'Error del servidor al eliminar categoría' });
@@ -132,10 +133,11 @@ app.delete('/api/proveedores/:id', requiereRol('administrador'), async (req, res
     const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Productos WHERE id_proveedor = ?', [id]);
     const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
     if (total > 0) {
-      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} producto(s) usan este proveedor` });
+      return res.status(400).json({ success: false, message: `No se puede eliminar: ${total} producto(s) usan este proveedor` });
     }
-    await pool.query('DELETE FROM Proveedores WHERE id_proveedor = ?', [id]);
-    res.json({ ok: true });
+    const [delRes] = await pool.query('DELETE FROM Proveedores WHERE id_proveedor = ?', [id]);
+    if (delRes.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Proveedor no encontrado' });
   } catch (e) {
     console.error('Error eliminar proveedor:', e.message);
     res.status(500).json({ ok: false, message: 'Error del servidor al eliminar proveedor' });
@@ -181,10 +183,11 @@ app.delete('/api/tallas/:id', requiereRol('administrador'), async (req, res) => 
     const [cnt] = await pool.query('SELECT COUNT(*) as total FROM Inventario WHERE id_talla = ?', [id]);
     const total = (Array.isArray(cnt) && cnt[0]) ? cnt[0].total : (cnt.total || 0);
     if (total > 0) {
-      return res.status(400).json({ ok: false, message: `No se puede eliminar: ${total} registro(s) en inventario usan esta talla` });
+      return res.status(400).json({ success: false, message: `No se puede eliminar: ${total} registro(s) en inventario usan esta talla` });
     }
-    await pool.query('DELETE FROM Tallas WHERE id_talla = ?', [id]);
-    res.json({ ok: true });
+    const [delRes] = await pool.query('DELETE FROM Tallas WHERE id_talla = ?', [id]);
+    if (delRes.affectedRows > 0) return res.json({ success: true });
+    return res.status(404).json({ success: false, message: 'Talla no encontrada' });
   } catch (e) {
     console.error('Error eliminar talla:', e.message);
     res.status(500).json({ ok: false, message: 'Error del servidor al eliminar talla' });
