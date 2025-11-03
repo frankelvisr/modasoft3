@@ -1346,6 +1346,62 @@ app.get('/api/admin/ventas', requiereRol('administrador'), async (req, res) => {
   }
 });
 
+// Eliminar venta (DELETE) - Reversa inventario y borra detalleventa + venta en transacción
+app.delete('/api/admin/ventas/:id', requiereRol('administrador'), async (req, res) => {
+  const id = req.params.id;
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    // Verificar existencia de la venta
+    const [ventaRows] = await conn.query('SELECT id_venta FROM ventas WHERE id_venta = ?', [id]);
+    if (!ventaRows || ventaRows.length === 0) {
+      await conn.release();
+      return res.status(404).json({ ok: false, message: 'Venta no encontrada' });
+    }
+
+    // Obtener detalle de la venta para revertir inventario
+    const [detalles] = await conn.query('SELECT id_producto, id_talla, cantidad FROM detalleventa WHERE id_venta = ?', [id]);
+
+    for (const d of detalles) {
+      const cantidad = Number(d.cantidad || 0);
+      if (cantidad <= 0) continue;
+
+      // Si la línea tiene talla, intentar actualizar inventario por talla; si no existe registro, insertarlo
+      if (d.id_talla) {
+        const [upd] = await conn.query('UPDATE inventario SET cantidad = cantidad + ? WHERE id_producto = ? AND id_talla = ?', [cantidad, d.id_producto, d.id_talla]);
+        // Si no se actualizó (no existía), insertamos el registro
+        if (!upd || upd.affectedRows === 0) {
+          await conn.query('INSERT INTO inventario (id_producto, id_talla, cantidad) VALUES (?, ?, ?)', [d.id_producto, d.id_talla, cantidad]);
+        }
+      }
+
+      // También revertir inventario total del producto
+      await conn.query('UPDATE productos SET inventario = inventario + ? WHERE id_producto = ?', [cantidad, d.id_producto]);
+    }
+
+    // Borrar detalle y venta
+    await conn.query('DELETE FROM detalleventa WHERE id_venta = ?', [id]);
+    const [delRes] = await conn.query('DELETE FROM ventas WHERE id_venta = ?', [id]);
+    if (delRes.affectedRows === 0) {
+      await conn.rollback();
+      await conn.release();
+      return res.status(404).json({ ok: false, message: 'Venta no encontrada (al borrar)' });
+    }
+
+    await conn.commit();
+    await conn.release();
+    return res.json({ ok: true, message: 'Venta eliminada y stock revertido' });
+  } catch (e) {
+    if (conn) {
+      try { await conn.rollback(); await conn.release(); } catch (_) {}
+    }
+    console.error('Error eliminar venta admin:', e.message || e);
+    return res.status(500).json({ ok: false, message: 'Error del servidor al eliminar venta' });
+  }
+});
+
 // Endpoint optimizado: listar clientes con resumen de compras (count, total)
 app.get('/api/admin/clientes/resumen', requiereRol('administrador'), async (req, res) => {
   try {

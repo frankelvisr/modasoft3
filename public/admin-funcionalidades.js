@@ -647,6 +647,7 @@ async function cargarVentasAdmin(busqueda = '') {
                 </div>
                 <div class="actions">
                     <button class="btn btn-small" onclick="verDetalleVenta(${v.id_venta})">Ver</button>
+                    <button class="btn btn-small danger" onclick="eliminarVentaAdmin(${v.id_venta})">Eliminar</button>
                 </div>
             </div>
         `).join('');
@@ -666,6 +667,34 @@ async function cargarVentasAdmin(busqueda = '') {
 window.verDetalleVenta = function(id) {
     // Simple scroll a la venta o abrir modal: por ahora mostramos alerta con detalles
     alert('Ver detalles venta #' + id + ' (implementar modal si se desea)');
+};
+
+// Eliminar venta desde UI (admin)
+window.eliminarVentaAdmin = async function(id) {
+    if (!confirm('¿Seguro que deseas eliminar la venta #' + id + '? Esto revertirá el stock y no se podrá deshacer.')) return;
+    try {
+        const res = await fetch(`/api/admin/ventas/${id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Error al eliminar la venta');
+        }
+
+        const data = await res.json();
+        if (data.ok) {
+            alert('✅ Venta eliminada y stock revertido');
+            cargarVentasAdmin();
+        } else {
+            throw new Error(data.message || 'No se pudo eliminar la venta');
+        }
+    } catch (e) {
+        console.error('Error eliminar venta:', e);
+        alert('❌ ' + (e.message || 'Error al eliminar la venta'));
+    }
 };
 
 
