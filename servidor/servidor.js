@@ -508,6 +508,146 @@ app.get('/api/tasa-bcv', async (req, res) => {
   }
 });
 
+// ==================== DEVOLUCIONES (CAJA) ====================
+// Validar acceso al módulo de devoluciones mediante clave en tabla configuracion
+app.post('/api/devoluciones/validar-clave', requiereRol('caja'), async (req, res) => {
+  try {
+    const clave = (req.body && req.body.clave ? String(req.body.clave) : '').trim();
+    if (!clave) return res.json({ ok: false });
+    const [rows] = await pool.query('SELECT valor FROM configuracion WHERE clave = ? LIMIT 1', ['clave_devoluciones']);
+    const ok = rows && rows[0] && String(rows[0].valor) === clave;
+    return res.json({ ok: !!ok });
+  } catch (e) {
+    return res.json({ ok: false });
+  }
+});
+
+// Listar ventas de un cliente por cédula, con detalles y cantidades disponibles para devolución
+app.get('/api/devoluciones/ventas-cliente', requiereRol('caja'), async (req, res) => {
+  try {
+    const cedula = req.query.cedula ? String(req.query.cedula).trim() : '';
+    if (!cedula) return res.json({ ok: false, ventas: [] });
+    const [cliRows] = await pool.query('SELECT id_cliente, nombre FROM clientes WHERE cedula = ? LIMIT 1', [cedula]);
+    if (!cliRows || cliRows.length === 0) return res.json({ ok: true, ventas: [] });
+    const id_cliente = cliRows[0].id_cliente;
+
+    // Ventas del cliente
+    const [ventas] = await pool.query(
+      `SELECT id_venta, fecha_hora, total_venta, tipo_pago FROM ventas WHERE id_cliente = ? ORDER BY fecha_hora DESC LIMIT 200`,
+      [id_cliente]
+    );
+
+    // Para cada venta, obtener detalle + cantidad devuelta acumulada
+    for (const v of ventas) {
+      const [det] = await pool.query(
+        `SELECT d.id_detalle, d.id_producto, d.id_talla, d.cantidad, d.precio_unitario,
+                COALESCE(t.nombre, '-') AS nombre_talla,
+                COALESCE(p.nombre, '') AS nombre_producto,
+                COALESCE(SUM(dev.cantidad), 0) AS devuelta
+         FROM detalleventa d
+         LEFT JOIN productos p ON p.id_producto = d.id_producto
+         LEFT JOIN tallas t ON t.id_talla = d.id_talla
+         LEFT JOIN devoluciones dev ON dev.id_detalle = d.id_detalle
+         WHERE d.id_venta = ?
+         GROUP BY d.id_detalle, d.id_producto, d.id_talla, d.cantidad, d.precio_unitario, t.nombre, p.nombre
+         ORDER BY d.id_detalle`,
+        [v.id_venta]
+      );
+      // Calcular cantidad disponible para devolución y precio neto
+      const [cols] = await pool.query("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'detalleventa'");
+      const hasDescUnit = Array.isArray(cols) && cols.some(c => c.COLUMN_NAME === 'descuento_unitario');
+      const detConDispon = [];
+      for (const d of det) {
+        const disponible = Math.max(0, Number(d.cantidad || 0) - Number(d.devuelta || 0));
+        let precio_neto = Number(d.precio_unitario || 0);
+        if (hasDescUnit) {
+          try {
+            const [rr] = await pool.query('SELECT descuento_unitario FROM detalleventa WHERE id_detalle = ? LIMIT 1', [d.id_detalle]);
+            if (rr && rr[0] && rr[0].descuento_unitario != null) precio_neto = Math.max(0, precio_neto - Number(rr[0].descuento_unitario || 0));
+          } catch (_) {}
+        }
+        detConDispon.push({
+          id_detalle: d.id_detalle,
+          id_producto: d.id_producto,
+          id_talla: d.id_talla,
+          nombre_producto: d.nombre_producto,
+          nombre_talla: d.nombre_talla,
+          cantidad: Number(d.cantidad),
+          devuelta: Number(d.devuelta),
+          disponible,
+          precio_unitario: Number(d.precio_unitario),
+          precio_neto
+        });
+      }
+      v.detalles = detConDispon;
+    }
+
+    return res.json({ ok: true, ventas });
+  } catch (e) {
+    console.error('Error /api/devoluciones/ventas-cliente:', e.message || e);
+    return res.status(500).json({ ok: false, ventas: [] });
+  }
+});
+
+// Registrar devolución de una línea de venta (parcial o total)
+app.post('/api/devoluciones', requiereRol('caja'), async (req, res) => {
+  const { id_detalle, cantidad } = req.body || {};
+  const cant = Number(cantidad || 0);
+  if (!id_detalle || !cant || cant <= 0) return res.status(400).json({ ok: false, error: 'Datos inválidos' });
+  let conn;
+  try {
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+
+    // Obtener detalle y acumulado devuelto
+    const [[detalle]] = await conn.query(
+      'SELECT d.id_detalle, d.id_venta, d.id_producto, d.id_talla, d.cantidad, d.precio_unitario, d.descuento_unitario FROM detalleventa d WHERE d.id_detalle = ? LIMIT 1',
+      [id_detalle]
+    );
+    if (!detalle) { await conn.rollback(); conn.release(); return res.status(404).json({ ok: false, error: 'Detalle no encontrado' }); }
+
+    const [[acum]] = await conn.query('SELECT COALESCE(SUM(cantidad),0) AS devuelta FROM devoluciones WHERE id_detalle = ?', [id_detalle]);
+    const devuelta = Number(acum && acum.devuelta || 0);
+    const disponible = Math.max(0, Number(detalle.cantidad || 0) - devuelta);
+    if (cant > disponible) {
+      await conn.rollback(); conn.release();
+      return res.status(400).json({ ok: false, error: `Cantidad supera lo disponible para devolución (${disponible})` });
+    }
+
+    // Calcular monto a restar: precio neto (considerando posible descuento_unitario)
+    const precioUnit = Number(detalle.precio_unitario || 0);
+    const descUnit = detalle.descuento_unitario != null ? Number(detalle.descuento_unitario || 0) : 0;
+    const precioNeto = Math.max(0, precioUnit - descUnit);
+    const montoReembolso = precioNeto * cant;
+
+    // Insertar registro de devolución
+    await conn.query(
+      'INSERT INTO devoluciones (id_detalle, fecha_hora, cantidad, monto_reembolsado) VALUES (?, NOW(), ?, ?)',
+      [id_detalle, cant, montoReembolso]
+    );
+
+    // Restituir inventario: por talla si aplica, y total del producto
+    if (detalle.id_talla) {
+      const [upd] = await conn.query('UPDATE inventario SET cantidad = cantidad + ? WHERE id_producto = ? AND id_talla = ?', [cant, detalle.id_producto, detalle.id_talla]);
+      if (!upd || upd.affectedRows === 0) {
+        await conn.query('INSERT INTO inventario (id_producto, id_talla, cantidad) VALUES (?, ?, ?)', [detalle.id_producto, detalle.id_talla, cant]);
+      }
+    }
+    await conn.query('UPDATE productos SET inventario = inventario + ? WHERE id_producto = ?', [cant, detalle.id_producto]);
+
+    // Disminuir total de la venta del mes/venta específica
+    await conn.query('UPDATE ventas SET total_venta = GREATEST(0, total_venta - ?) WHERE id_venta = ?', [montoReembolso, detalle.id_venta]);
+
+    await conn.commit();
+    conn.release();
+    return res.json({ ok: true, monto_reembolsado: montoReembolso });
+  } catch (e) {
+    if (conn) { try { await conn.rollback(); conn.release(); } catch (_) {} }
+    console.error('Error registrando devolución:', e.message || e);
+    return res.status(500).json({ ok: false, error: 'Error del servidor al registrar devolución' });
+  }
+});
+
 
 // ==================== COMPRAS (ADMIN) ====================
 // POST /api/compras: Registrar una compra (talla opcional)
@@ -1186,14 +1326,33 @@ app.delete('/api/admin/productos/:id', requiereRol('administrador'), async (req,
     conn = await pool.getConnection();
     await conn.beginTransaction();
 
-    // 1) Verificar si el producto tiene registros en detalleventa -> si tiene ventas, NO eliminar
-    const [detCountRows] = await conn.query('SELECT COUNT(*) as total FROM detalleventa WHERE id_producto = ?', [id]);
-    const detTotal = (Array.isArray(detCountRows) && detCountRows[0]) ? detCountRows[0].total : (detCountRows.total || 0);
-    if (detTotal > 0) {
-      await conn.rollback();
-      conn.release();
-      return res.status(400).json({ ok: false, success: false, message: `No se puede eliminar: el producto tiene ${detTotal} venta(s) registrada(s)` });
+    // Asegurar producto placeholder para preservar historial en ventas y compras
+    // Buscamos un producto con marca '-' y nombre 'Producto eliminado'
+    let placeholderId = null;
+    {
+      const [ph] = await conn.query("SELECT id_producto FROM productos WHERE nombre = 'Producto eliminado' AND marca = '-' LIMIT 1");
+      if (ph && ph.length > 0) {
+        placeholderId = ph[0].id_producto;
+      } else {
+        // Obtener una categoría válida (primera disponible) o usar 1
+        let catId = 1;
+        try {
+          const [cats] = await conn.query('SELECT id_categoria FROM categorias ORDER BY id_categoria LIMIT 1');
+          if (cats && cats.length > 0) catId = cats[0].id_categoria;
+        } catch (_) {}
+        const [ins] = await conn.query(
+          'INSERT INTO productos (nombre, marca, precio_venta, inventario, id_categoria, id_proveedor) VALUES (?, ?, ?, ?, ?, ?)',
+          ['Producto eliminado', '-', 0, 0, catId, null]
+        );
+        placeholderId = ins.insertId;
+      }
     }
+
+    // Reasignar referencias en detalleventa y detallecompra al placeholder (mantener ventas/compras históricas)
+    await conn.query('UPDATE detalleventa SET id_producto = ? WHERE id_producto = ?', [placeholderId, id]);
+    try {
+      await conn.query('UPDATE detallecompra SET id_producto = ? WHERE id_producto = ?', [placeholderId, id]);
+    } catch (_) { /* si la tabla no existe, continuar */ }
 
     // 2) Eliminar filas relacionadas en inventario (si existen)
     await conn.query('DELETE FROM inventario WHERE id_producto = ?', [id]);
@@ -1346,6 +1505,37 @@ app.get('/api/admin/ventas', requiereRol('administrador'), async (req, res) => {
   }
 });
 
+// Obtener detalle de una venta por ID (administrador)
+app.get('/api/admin/ventas/:id', requiereRol('administrador'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ ok: false, message: 'ID inválido' });
+    const [ventasRows] = await pool.query(
+      `SELECT v.id_venta, v.fecha_hora, v.total_venta, v.tipo_pago, u.usuario AS usuario, c.nombre AS cliente, c.cedula AS cliente_cedula
+       FROM ventas v
+       LEFT JOIN usuarios u ON v.id_usuario = u.id_usuario
+       LEFT JOIN clientes c ON v.id_cliente = c.id_cliente
+       WHERE v.id_venta = ? LIMIT 1`,
+      [id]
+    );
+    if (!ventasRows || ventasRows.length === 0) return res.status(404).json({ ok: false, message: 'Venta no encontrada' });
+    const venta = ventasRows[0];
+    const [det] = await pool.query(
+      `SELECT d.id_detalle, d.id_producto, p.marca, p.nombre AS producto, d.id_talla, t.nombre AS talla, d.cantidad, d.precio_unitario, d.descuento_unitario, d.descuento_total, d.id_promocion_aplicada
+       FROM detalleventa d
+       LEFT JOIN productos p ON d.id_producto = p.id_producto
+       LEFT JOIN tallas t ON d.id_talla = t.id_talla
+       WHERE d.id_venta = ?`,
+      [id]
+    );
+    venta.detalle = det || [];
+    return res.json({ ok: true, venta });
+  } catch (e) {
+    console.error('Error obtener venta por id:', e.message || e);
+    return res.status(500).json({ ok: false, message: 'Error del servidor' });
+  }
+});
+
 // Eliminar venta (DELETE) - Reversa inventario y borra detalleventa + venta en transacción
 app.delete('/api/admin/ventas/:id', requiereRol('administrador'), async (req, res) => {
   const id = req.params.id;
@@ -1362,7 +1552,14 @@ app.delete('/api/admin/ventas/:id', requiereRol('administrador'), async (req, re
     }
 
     // Obtener detalle de la venta para revertir inventario
-    const [detalles] = await conn.query('SELECT id_producto, id_talla, cantidad FROM detalleventa WHERE id_venta = ?', [id]);
+    const [detalles] = await conn.query('SELECT id_detalle, id_producto, id_talla, cantidad, precio_unitario, descuento_unitario FROM detalleventa WHERE id_venta = ?', [id]);
+
+    // Borrar devoluciones que referencian a los detalles de esta venta (evita error por FK)
+    if (detalles.length > 0) {
+      const ids = detalles.map(d => d.id_detalle);
+      const placeholders = ids.map(_ => '?').join(',');
+      await conn.query(`DELETE FROM devoluciones WHERE id_detalle IN (${placeholders})`, ids);
+    }
 
     for (const d of detalles) {
       const cantidad = Number(d.cantidad || 0);
@@ -1649,5 +1846,95 @@ app.get('/api/reportes/rotacion-inventario', requiereRol('administrador'), async
   } catch (e) {
     console.error('Error reportes rotacion-inventario:', e.message || e);
     res.status(500).json({ ok: false, rows: [], message: 'Error al obtener rotación de inventario' });
+  }
+});
+
+// Reporte: Inventario actual por producto (y tallas)
+app.get('/api/reportes/inventario-actual', requiereRol('administrador'), async (req, res) => {
+  try {
+    const [prods] = await pool.query(
+      `SELECT p.id_producto, p.nombre, p.marca, c.nombre AS categoria
+       FROM productos p
+       LEFT JOIN categorias c ON p.id_categoria = c.id_categoria
+       ORDER BY p.marca, p.nombre`
+    );
+    const ids = prods.map(p => p.id_producto);
+    let invMap = new Map();
+    if (ids.length > 0) {
+      const placeholders = ids.map(_ => '?').join(',');
+      const [inv] = await pool.query(
+        `SELECT i.id_producto, i.id_talla, t.nombre AS talla, i.cantidad
+         FROM inventario i
+         LEFT JOIN tallas t ON t.id_talla = i.id_talla
+         WHERE i.id_producto IN (${placeholders})
+         ORDER BY t.nombre`, ids);
+      for (const r of inv) {
+        const arr = invMap.get(r.id_producto) || [];
+        arr.push({ id_talla: r.id_talla, talla: r.talla, cantidad: Number(r.cantidad||0) });
+        invMap.set(r.id_producto, arr);
+      }
+    }
+    const rows = prods.map(p => {
+      const tallas = invMap.get(p.id_producto) || [];
+      const stock_total = tallas.reduce((s, t) => s + Number(t.cantidad||0), 0);
+      return { id_producto: p.id_producto, nombre: p.nombre, marca: p.marca, categoria: p.categoria || 'Sin categoría', stock_total, tallas };
+    });
+    return res.json({ ok: true, rows });
+  } catch (e) {
+    console.error('Error reporte inventario-actual:', e.message || e);
+    return res.status(500).json({ ok: false, rows: [] });
+  }
+});
+
+// Reporte: Compras por periodo (detalle y totales por proveedor)
+app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (req, res) => {
+  try {
+    // Fechas opcionales; por defecto último mes
+    const start = req.query.start || null;
+    const end = req.query.end || null;
+    let where = '1=1';
+    const params = [];
+    if (start) { where += ' AND c.fecha_compra >= ?'; params.push(start); }
+    if (end) { where += ' AND c.fecha_compra <= ?'; params.push(end); }
+
+    const [rows] = await pool.query(
+      `SELECT c.id_compra, c.fecha_compra, c.total_compra, c.estado_pago,
+              p.nombre AS proveedor,
+              dc.id_producto, pr.marca, pr.nombre AS producto, dc.cantidad, dc.costo_unitario
+       FROM compras c
+       LEFT JOIN proveedores p ON p.id_proveedor = c.id_proveedor
+       LEFT JOIN detallecompra dc ON dc.id_compra = c.id_compra
+       LEFT JOIN productos pr ON pr.id_producto = dc.id_producto
+       WHERE ${where}
+       ORDER BY c.fecha_compra DESC, c.id_compra DESC`
+      , params);
+
+    // Agrupar por proveedor
+    const proveedorMap = new Map();
+    for (const r of rows) {
+      const prov = r.proveedor || 'Sin proveedor';
+      if (!proveedorMap.has(prov)) proveedorMap.set(prov, { proveedor: prov, subtotal: 0, compras: [] });
+      const grupo = proveedorMap.get(prov);
+      const lineaTotal = Number(r.cantidad||0) * Number(r.costo_unitario||0);
+      grupo.subtotal += lineaTotal;
+      grupo.compras.push({
+        id_compra: r.id_compra,
+        fecha_compra: r.fecha_compra,
+        estado_pago: r.estado_pago,
+        total_compra: Number(r.total_compra||0),
+        id_producto: r.id_producto,
+        marca: r.marca,
+        producto: r.producto,
+        cantidad: Number(r.cantidad||0),
+        costo_unitario: Number(r.costo_unitario||0),
+        total_linea: lineaTotal
+      });
+    }
+    const grupos = Array.from(proveedorMap.values());
+    const total_general = grupos.reduce((s,g)=> s + Number(g.subtotal||0), 0);
+    return res.json({ ok: true, grupos, total_general });
+  } catch (e) {
+    console.error('Error reporte compras-periodo:', e.message || e);
+    return res.status(500).json({ ok: false, grupos: [], total_general: 0 });
   }
 });

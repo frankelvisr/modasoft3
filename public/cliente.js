@@ -870,6 +870,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- CAJA: Lógica de Ventas ---
     if (formVentaCaja) {
+        // Si existe el módulo avanzado de caja, delegar toda la lógica de carrito/render a él
+        // para evitar que este archivo sobrescriba el DOM del carrito y oculte promociones.
+        if (typeof window !== 'undefined' && window._caja && typeof window._caja.renderCart === 'function') {
+            console.log('[cliente.js] Delegando lógica de carrito a caja-funcionalidades.js');
+            // Aún así, mantener autocompletar de cliente y botones de logout fuera del flujo del carrito
+            // y no registrar los listeners de carrito/venta aquí.
+            return;
+        }
         // Autocompletar datos del cliente al ingresar la cédula
         inputCedula.addEventListener('blur', async () => {
             const cedula = inputCedula.value.trim();

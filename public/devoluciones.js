@@ -59,12 +59,12 @@ async function buscarVentasCliente() {
                         Total: $${venta.total_venta}<br>
                         Productos:
                         <ul style="margin-top:8px;">
-                            ${venta.detalles.map(det => `
-                                <li>${det.nombre_producto} - Talla: ${det.nombre_talla} - 
-                                Cantidad: ${det.cantidad} - Precio: $${det.precio_unitario}
-                                <button class="btn btn-small" onclick="procesarDevolucion(${det.id_detalle}, ${det.cantidad}, ${det.precio_unitario})" 
-                                style="margin-left:10px;">Devolver</button></li>
-                            `).join('')}
+                            ${venta.detalles.map(det => {
+                                const disponible = Number(det.disponible || 0);
+                                const badge = disponible > 0 ? `<span style='color:#2e7d32;font-weight:600;margin-left:6px;'>(Disp.: ${disponible})</span>` : `<span style='color:#b71c1c;font-weight:600;margin-left:6px;'>(Sin disp.)</span>`;
+                                const btn = disponible > 0 ? `<button class="btn btn-small" onclick="procesarDevolucion(${det.id_detalle}, ${disponible})" style="margin-left:10px;">Devolver</button>` : '';
+                                return `<li>${det.nombre_producto} - Talla: ${det.nombre_talla} - Cantidad vendida: ${det.cantidad} ${badge} - Precio neto: $${Number(det.precio_neto || det.precio_unitario).toFixed(2)} ${btn}</li>`;
+                            }).join('')}
                         </ul>
                     </div>
                 </div>
@@ -78,7 +78,7 @@ async function buscarVentasCliente() {
     }
 }
 
-window.procesarDevolucion = async function(idDetalle, cantidadMax, precioUnitario) {
+window.procesarDevolucion = async function(idDetalle, cantidadMax) {
     const cantidad = prompt(`Ingrese la cantidad a devolver (máximo: ${cantidadMax}):`, cantidadMax);
     if (!cantidad || isNaN(cantidad) || parseInt(cantidad) < 1 || parseInt(cantidad) > cantidadMax) {
         alert('Cantidad inválida');
@@ -91,14 +91,13 @@ window.procesarDevolucion = async function(idDetalle, cantidadMax, precioUnitari
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 id_detalle: idDetalle,
-                cantidad: parseInt(cantidad),
-                monto_reembolsado: parseFloat(cantidad) * precioUnitario
+                cantidad: parseInt(cantidad)
             })
         });
 
         const data = await res.json();
         if (data.ok) {
-            alert('Devolución procesada correctamente. El inventario ha sido actualizado.');
+            alert(`Devolución procesada. Reembolso: $${Number(data.monto_reembolsado || 0).toFixed(2)}. Inventario actualizado y venta ajustada.`);
             buscarVentasCliente(); // Recargar ventas
         } else {
             alert('Error: ' + (data.error || ''));

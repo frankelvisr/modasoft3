@@ -52,10 +52,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const promoTipoEl = document.getElementById('promoTipo');
     const promoParamsEl = document.getElementById('promoParams');
     if (promoTipoEl && promoParamsEl) {
-        promoTipoEl.addEventListener('change', function() {
-            if (promoTipoEl.value === 'COMPRA_X_LLEVA_Y') promoParamsEl.style.display = 'block';
-            else promoParamsEl.style.display = 'none';
-        });
+                promoTipoEl.addEventListener('change', function() {
+                        if (promoTipoEl.value === 'COMPRA_X_LLEVA_Y') promoParamsEl.style.display = 'block';
+                        else promoParamsEl.style.display = 'none';
+
+                        // Ajustar placeholder/label del campo valor según tipo de promoción
+                        const valorEl = document.getElementById('promoValor');
+                        if (valorEl) {
+                            if (promoTipoEl.value === 'DESCUENTO_PORCENTAJE') {
+                                valorEl.placeholder = 'Ej: 10 (representa 10%)';
+                            } else if (promoTipoEl.value === 'DESCUENTO_FIJO') {
+                                valorEl.placeholder = 'Ej: 5.50 (monto en $)';
+                            } else {
+                                valorEl.placeholder = '';
+                            }
+                        }
+                });
+                // Inicializar placeholder según el valor actual del select
+                (function(){ const ev = new Event('change'); promoTipoEl.dispatchEvent(ev); })();
     }
 
     // Contabilidad
@@ -78,6 +92,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Reportes
     cargarReporteUtilidad();
+
+    // Botones de nuevos reportes
+    const btnInv = document.getElementById('btnReporteInventario');
+    if (btnInv) btnInv.addEventListener('click', renderReporteInventario);
+    const btnCompras = document.getElementById('btnReporteCompras');
+    if (btnCompras) btnCompras.addEventListener('click', renderReporteCompras);
 
     // Selector de temporada para análisis de ventas (si existe en la página)
     const selTemp = document.getElementById('selectTemporada');
@@ -237,13 +257,12 @@ async function cargarCompras() {
             }
             lista.innerHTML = data.compras.map(compra => {
                 const detallesHtml = compra.detalles && compra.detalles.length > 0 
-                    ? compra.detalles.map(d => 
-                        `<div style="margin-left:20px;font-size:0.9em;color:#666;">
-                            - ${d.marca || ''} ${d.nombre_producto || 'Producto #' + d.id_producto} 
-                            (${d.cantidad} unidades x $${parseFloat(d.costo_unitario).toFixed(2)}) 
-                            = $${(d.cantidad * parseFloat(d.costo_unitario)).toFixed(2)}
-                        </div>`
-                      ).join('')
+                    ? compra.detalles.map(d => {
+                        const nombre = (d && d.nombre_producto) ? d.nombre_producto : ('Producto #' + d.id_producto);
+                        const label = (String(nombre).toLowerCase() === 'producto eliminado') ? 'Producto eliminado' : `${d.marca || ''} ${nombre}`;
+                        const costo = parseFloat(d.costo_unitario || 0);
+                        return `<div style="margin-left:20px;font-size:0.9em;color:#666;">- ${label} (${d.cantidad} unidades x $${costo.toFixed(2)}) = $${(Number(d.cantidad||0) * costo).toFixed(2)}</div>`;
+                      }).join('')
                     : '<div style="margin-left:20px;font-size:0.9em;color:#999;">Sin detalles</div>';
                 
                 return `
@@ -665,8 +684,36 @@ async function cargarVentasAdmin(busqueda = '') {
 }
 
 window.verDetalleVenta = function(id) {
-    // Simple scroll a la venta o abrir modal: por ahora mostramos alerta con detalles
-    alert('Ver detalles venta #' + id + ' (implementar modal si se desea)');
+        // Mostrar modal con detalle de venta (llamada al endpoint admin)
+        (async function(){
+            try {
+                const modal = document.getElementById('modalDetalleVenta');
+                const title = document.getElementById('detalleVentaTitle');
+                const body = document.getElementById('detalleVentaBody');
+                if (!modal || !title || !body) { alert('Detalle de venta no disponible'); return; }
+                title.textContent = 'Cargando venta #' + id + '...';
+                body.innerHTML = '<div>Cargando...</div>';
+                modal.style.display = 'flex';
+                const res = await fetch('/api/admin/ventas/' + encodeURIComponent(id));
+                if (!res.ok) {
+                    const err = await res.json().catch(()=>({}));
+                    body.innerHTML = '<div>Error: ' + (err.message || 'No se pudo cargar la venta') + '</div>';
+                    return;
+                }
+                const j = await res.json();
+                if (!j.ok || !j.venta) { body.innerHTML = '<div>Venta no encontrada</div>'; return; }
+                const v = j.venta;
+                title.textContent = 'Venta #' + v.id_venta + ' — ' + (v.cliente || 'Cliente');
+                const detalleHtml = (v.detalle || []).map(d => {
+                    const descuentoUnit = d.descuento_unitario != null ? ` - Desc(unit): $${Number(d.descuento_unitario).toFixed(2)}` : '';
+                    return `<div style="margin-bottom:8px;"><strong>${d.marca || ''} ${d.producto || ''}</strong><br>Talla: ${d.talla || '-'} | Cant: ${d.cantidad} | Precio unit: $${Number(d.precio_unitario||0).toFixed(2)}${descuentoUnit}</div>`;
+                }).join('');
+                body.innerHTML = `<div><b>Fecha:</b> ${v.fecha_hora}<br><b>Total:</b> $${Number(v.total_venta||0).toFixed(2)}<br><b>Pago:</b> ${v.tipo_pago || ''}<br><b>Usuario:</b> ${v.usuario || ''}</div><hr>${detalleHtml}`;
+            } catch (e) {
+                console.error('verDetalleVenta error', e);
+                alert('Error al cargar detalle de venta');
+            }
+        })();
 };
 
 // Eliminar venta desde UI (admin)
@@ -817,6 +864,72 @@ async function cargarReporteUtilidad() {
         }
     } catch (error) {
         console.error('Error cargando reporte:', error);
+    }
+}
+
+// ============ NUEVOS REPORTES ============
+async function renderReporteInventario() {
+    const cont = document.getElementById('reporteInventario');
+    if (!cont) return;
+    cont.innerHTML = '<div class="item">Cargando inventario...</div>';
+    try {
+        const res = await fetch('/api/reportes/inventario-actual');
+        const data = await res.json();
+        if (!data.ok || !data.rows || data.rows.length === 0) {
+            cont.innerHTML = '<div class="item">No hay datos de inventario.</div>';
+            return;
+        }
+        cont.innerHTML = data.rows.map(r => {
+            const tallas = (r.tallas||[]).map(t => `${t.talla||'-'}: ${t.cantidad}`).join(' · ');
+            return `
+            <div class="item">
+                <div>
+                    <strong>${r.marca || ''} ${r.nombre}</strong><br>
+                    Categoría: ${r.categoria || 'N/A'}<br>
+                    <span style="color:#2e7d32;font-weight:600;">Stock total: ${r.stock_total}</span>
+                    ${tallas ? `<div style="margin-top:6px;color:#666;">${tallas}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        cont.innerHTML = '<div class="item">Error al cargar inventario.</div>';
+    }
+}
+
+async function renderReporteCompras() {
+    const cont = document.getElementById('reporteCompras');
+    if (!cont) return;
+    cont.innerHTML = '<div class="item">Cargando compras...</div>';
+    try {
+        const fi = document.getElementById('comprasFechaInicio')?.value || '';
+        const ff = document.getElementById('comprasFechaFin')?.value || '';
+        const qs = new URLSearchParams();
+        if (fi) qs.set('start', fi);
+        if (ff) qs.set('end', ff);
+        const res = await fetch('/api/reportes/compras-periodo' + (qs.toString() ? ('?' + qs.toString()) : ''));
+        const data = await res.json();
+        if (!data.ok || !data.grupos || data.grupos.length === 0) {
+            cont.innerHTML = '<div class="item">No hay compras en el periodo seleccionado.</div>';
+            return;
+        }
+        cont.innerHTML = data.grupos.map(g => {
+            const body = g.compras.map(c => `
+                <div style="margin-left:20px;font-size:0.92em;color:#555;">
+                  - #${c.id_compra} ${c.fecha_compra} | ${c.marca||''} ${c.producto||('Producto #' + (c.id_producto||''))}
+                  — ${c.cantidad} x $${Number(c.costo_unitario||0).toFixed(2)} = $${Number(c.total_linea||0).toFixed(2)}
+                </div>
+            `).join('');
+            return `
+            <div class="item">
+              <div>
+                <strong>${g.proveedor}</strong>
+                <div style="margin-top:8px;">${body}</div>
+                <div style="margin-top:8px;font-weight:700;">Subtotal proveedor: $${Number(g.subtotal||0).toFixed(2)}</div>
+              </div>
+            </div>`;
+        }).join('') + `<div class="item" style="border-top:1px solid #ddd;margin-top:10px;padding-top:10px;font-weight:700;">Total general: $${Number(data.total_general||0).toFixed(2)}</div>`;
+    } catch (e) {
+        cont.innerHTML = '<div class="item">Error al cargar compras.</div>';
     }
 }
 

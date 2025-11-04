@@ -73,13 +73,14 @@
             </div>
           </div>
           <div class="row form-row">
-            <div class="col">
+            <!-- Mostrar SOLO el precio en Bolívares para que el cajero ingrese/vea precios en moneda local -->
+            <div class="col" style="display:none;" aria-hidden="true">
               <label>Precio unitario ($)</label>
-              <input id="ventaPrecioUnitario" placeholder="Precio unitario" type="number" step="0.01" class="input" required>
+              <input id="ventaPrecioUnitario" placeholder="Precio unitario (USD, oculto)" type="number" step="0.01" class="input">
             </div>
             <div class="col">
               <label>Precio unitario (Bs)</label>
-              <input id="ventaPrecioUnitarioBs" placeholder="Precio unitario Bs" type="text" class="input" readonly>
+              <input id="ventaPrecioUnitarioBs" placeholder="Precio unitario Bs" type="text" class="input">
             </div>
             <div class="col">
               <label>Total ($)</label>

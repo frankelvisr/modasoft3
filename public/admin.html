@@ -648,6 +648,18 @@
                                 <span>Reportes</span>
                             </a>
                         </li>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); setTimeout(()=>renderReporteInventario(),120); return false;">
+                                <span class="sidebar-menu-icon">📦</span>
+                                <span>Reporte Inventario</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); setTimeout(()=>renderReporteCompras(),120); return false;">
+                                <span class="sidebar-menu-icon">🧾</span>
+                                <span>Reporte Compras</span>
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -781,6 +793,14 @@
                         <button type="button" class="btn" id="btnCerrarModal">Cancelar</button>
                     </div>
                 </form>
+            </div>
+        </div>
+        <!-- Modal Detalle de Venta (Admin) -->
+        <div id="modalDetalleVenta" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+            <div style="background:#fff;padding:20px;border-radius:8px;max-width:700px;width:90vw;">
+                <button onclick="document.getElementById('modalDetalleVenta').style.display='none'" style="float:right;">&times;</button>
+                <h3 id="detalleVentaTitle">Detalle de Venta</h3>
+                <div id="detalleVentaBody">Cargando...</div>
             </div>
         </div>
                 <!-- DASHBOARD GERENCIAL (Página Principal) -->
@@ -1385,6 +1405,28 @@
                                 <tr><td colspan="7" style="padding:var(--spacing-md);text-align:center;">Cargando datos...</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div class="chart-container" style="margin-top:24px;">
+                    <div class="chart-header">
+                        <h4 class="chart-title">Inventario Actual</h4>
+                        <button id="btnReporteInventario" class="btn secondary">Generar</button>
+                    </div>
+                    <div id="reporteInventario" class="list">
+                        <div class="item">Pulsa "Generar" para ver el inventario actual.</div>
+                    </div>
+                </div>
+
+                <div class="chart-container" style="margin-top:24px;">
+                    <div class="chart-header" style="gap:10px;display:flex;align-items:center;">
+                        <h4 class="chart-title">Reporte de Compras por Periodo</h4>
+                        <input type="date" id="comprasFechaInicio" class="input" style="width:auto;"/>
+                        <input type="date" id="comprasFechaFin" class="input" style="width:auto;"/>
+                        <button id="btnReporteCompras" class="btn secondary">Generar</button>
+                    </div>
+                    <div id="reporteCompras" class="list">
+                        <div class="item">Selecciona fechas (opcional) y pulsa "Generar".</div>
                     </div>
                 </div>
             </div>

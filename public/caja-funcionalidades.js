@@ -3,6 +3,8 @@ let cajaCart = [];
 let productosCache = [];
 let promocionesCache = [];
 let categoriasCache = [];
+let cachedTasa = null;
+let cachedTasaTs = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
   if (document.getElementById('ventaProducto')) {
@@ -19,6 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       await loadCategorias();
       console.log('Categorías cargadas:', categoriasCache.length);
+      // Cargar tasa de conversión para mostrar precios en Bs
+      try { await getTasa(); console.log('Tasa cargada:', cachedTasa); } catch(e){ console.warn('No se pudo obtener tasa:', e); }
     } catch (e) {
       console.error('Error inicializando:', e);
       // intentar cargar individualmente si Promise.all falló
@@ -30,6 +34,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Listeners
     document.getElementById('btnAgregarProducto').addEventListener('click', onAgregarAlCarrito);
     document.getElementById('btnPagarVenta').addEventListener('click', onPagarVenta);
+    // Búsqueda automática de cliente por cédula (debounce)
+    const cedInput = document.getElementById('ventaClienteCedula');
+    if (cedInput) {
+      let tCed;
+      cedInput.addEventListener('input', function(e){
+        clearTimeout(tCed);
+        tCed = setTimeout(() => { buscarClientePorCedula(e.target.value.trim()); }, 350);
+      });
+      cedInput.addEventListener('blur', function(e){ buscarClientePorCedula(e.target.value.trim()); });
+    }
     // Render inicial del carrito (si hay items previos)
     renderCart();
     console.log('=== CAJA INICIADA ===');
@@ -53,6 +67,35 @@ async function loadProductosForCaja() {
   } catch (e) {
     console.error('Error cargando productos para caja:', e);
   }
+}
+
+async function getTasa() {
+  const now = Date.now();
+  if (cachedTasa && (now - cachedTasaTs) < (1000*60*5)) return cachedTasa;
+  try {
+    const res = await fetch('/api/tasa-bcv');
+    const j = await res.json();
+    const t = Number(j.tasa || j.valor || 0) || 0;
+    if (t > 0) { cachedTasa = t; cachedTasaTs = Date.now(); return cachedTasa; }
+  } catch (e) { console.warn('getTasa error', e); }
+  // fallback
+  cachedTasa = 36; cachedTasaTs = Date.now(); return cachedTasa;
+}
+
+async function buscarClientePorCedula(cedula) {
+  if (!cedula) return;
+  try {
+    const res = await fetch('/api/clientes/buscar?cedula=' + encodeURIComponent(cedula));
+    if (!res.ok) return;
+    const j = await res.json();
+    if (j && j.cliente) {
+      const c = j.cliente;
+      document.getElementById('ventaClienteNombre').value = c.nombre || '';
+      document.getElementById('ventaClienteTelefono').value = c.telefono || '';
+      document.getElementById('ventaClienteEmail').value = c.email || '';
+      console.log('Cliente cargado por cédula:', c);
+    }
+  } catch (e) { console.warn('Error buscarClientePorCedula:', e); }
 }
 
 // Si un producto no trae id_categoria en la lista inicial, intentar obtener detalle del producto
@@ -156,7 +199,16 @@ async function onProductoChange() {
   if (prod) {
     // Asegurar que el producto tenga id_categoria para las promos
     await ensureProductoTieneCategoria(prod);
-    document.getElementById('ventaPrecioUnitario').value = parseFloat(prod.precio_venta || 0).toFixed(2);
+    // Precio del producto viene en USD (precio_venta). Convertimos y mostramos el precio unitario en Bs.
+    const usd = parseFloat(prod.precio_venta || 0) || 0;
+    document.getElementById('ventaPrecioUnitario').value = usd.toFixed(2); // oculto, para referencia
+    try {
+      const tasa = await getTasa();
+      const bs = usd * (Number(tasa) || 1);
+      document.getElementById('ventaPrecioUnitarioBs').value = bs ? bs.toFixed(2) : '';
+    } catch (e) {
+      document.getElementById('ventaPrecioUnitarioBs').value = '';
+    }
     const tallaSel = document.getElementById('ventaTalla');
     tallaSel.innerHTML = '<option value="">Selecciona talla</option>';
     (prod.tallas || []).forEach(t => {
@@ -172,18 +224,26 @@ async function onProductoChange() {
 }
 
 function calcularTotalesForm() {
-  const precio = parseFloat(document.getElementById('ventaPrecioUnitario').value || 0) || 0;
+  // Precio base en Bs (visible). Convertir a USD usando tasa
+  const precio_bs = parseFloat(document.getElementById('ventaPrecioUnitarioBs').value || 0) || 0;
   const cantidad = parseInt(document.getElementById('ventaCantidad').value || 0) || 0;
-  const total = precio * cantidad;
-  document.getElementById('ventaTotalDolar').value = total ? `$${total.toFixed(2)}` : '';
-  // tasa en el front se obtiene al pedir /api/tasa-bcv si se quiere convertir, omitimos aquí
+  const total_bs = precio_bs * cantidad;
+  // calcular USD con tasa
+  const tasa = Number(cachedTasa || 0);
+  const precio_usd = tasa > 0 ? (precio_bs / tasa) : 0;
+  const total_usd = precio_usd * cantidad;
+  document.getElementById('ventaTotalDolar').value = total_usd ? `$${total_usd.toFixed(2)}` : '';
+  document.getElementById('ventaTotalBs').value = total_bs ? `${total_bs.toFixed(2)}` : '';
 }
 
 async function onAgregarAlCarrito() {
   const id_producto = document.getElementById('ventaProducto').value;
   const id_talla = document.getElementById('ventaTalla').value || null;
   const cantidad = parseInt(document.getElementById('ventaCantidad').value || 0);
-  const precio_unitario = parseFloat(document.getElementById('ventaPrecioUnitario').value || 0) || 0;
+  // Tomamos el precio unitario en Bs desde el formulario y convertimos a USD
+  const precio_unitario_bs = parseFloat(document.getElementById('ventaPrecioUnitarioBs').value || 0) || 0;
+  const tasa = await getTasa().catch(()=>cachedTasa || 0);
+  const precio_unitario = (tasa && tasa > 0) ? (precio_unitario_bs / tasa) : 0; // en USD
   const id_categoria_seleccionada = document.getElementById('ventaCategoria').value || null;
   if (!id_producto || !cantidad || cantidad <= 0) { alert('Selecciona producto y cantidad válida'); return; }
   
@@ -221,7 +281,9 @@ async function onAgregarAlCarrito() {
     id_producto: Number(id_producto), 
     id_talla: id_talla_final, 
     cantidad, 
-    precio_unitario, 
+    // Guardamos ambos: precio en USD (interno) y precio en Bs (para mostrar y consistencia)
+    precio_unitario: Number(precio_unitario), // USD
+    precio_unitario_bs: Number(precio_unitario_bs),
     nombre: prod ? (prod.nombre || prod.marca) : 'Producto', 
     id_categoria: categoriaFinal,
     idCategoria: categoriaFinal, // también enviar como idCategoria para el servidor
@@ -468,14 +530,21 @@ function renderCart() {
   
   let html = '';
   let total = 0; let totalDescuentos = 0;
+  let total_bs = 0; let totalDescuentos_bs = 0;
   cajaCart.forEach((it, idx) => {
     console.log(`\n--- Evaluando item ${idx} ---`);
     const calc = aplicarMejorPromocion(it);
-    const descuento = Number(calc.descuento || 0);
-    const lineaTotal = (it.precio_unitario * it.cantidad) - descuento;
-    total += lineaTotal; totalDescuentos += descuento;
+  const descuento = Number(calc.descuento || 0); // en USD
+  const tasa = Number(cachedTasa || 0);
+  const descuento_bs = descuento * (tasa || 0);
+  const subtotal_usd = (it.precio_unitario * it.cantidad) || 0;
+  const subtotal_bs = (it.precio_unitario_bs * it.cantidad) || 0;
+  const lineaTotal_usd = subtotal_usd - descuento;
+  const lineaTotal_bs = subtotal_bs - descuento_bs;
+  total += lineaTotal_usd; totalDescuentos += descuento;
+  total_bs += lineaTotal_bs; totalDescuentos_bs += descuento_bs;
     
-    console.log(`Item ${idx}: Subtotal $${(it.precio_unitario * it.cantidad).toFixed(2)}, Descuento $${descuento.toFixed(2)}, Total línea $${lineaTotal.toFixed(2)}`);
+  console.log(`Item ${idx}: Subtotal $${subtotal_usd.toFixed(2)} (~Bs ${subtotal_bs.toFixed(2)}), Descuento $${descuento.toFixed(2)} (~Bs ${descuento_bs.toFixed(2)}), Total línea $${lineaTotal_usd.toFixed(2)} (~Bs ${lineaTotal_bs.toFixed(2)})`);
     // Controles: checkbox para aplicar/ignorar promo y select para forzar promoción
     const promoOptions = promocionesCache.filter(p => {
       try {
@@ -498,7 +567,7 @@ function renderCart() {
     
     const descuentoText = descuento > 0 
       ? `<div class="descuento-info">
-          <span class="descuento-monto">✨ Descuento: -$${descuento.toFixed(2)} ✨</span>
+          <span class="descuento-monto">✨ Descuento: -$${descuento.toFixed(2)} (~Bs ${descuento_bs.toFixed(2)}) ✨</span>
           <span class="promocion-nombre">📌 Promoción: ${calc.promo ? calc.promo.nombre : 'Promoción'}</span>
         </div>` 
       : '<div style="color:#999;font-size:0.85em;padding:4px;">Sin descuento aplicado</div>';
@@ -511,7 +580,7 @@ function renderCart() {
       <div style="font-size:0.95em;color:#333;margin-top:8px;">
         <div style="margin-bottom:8px;padding:8px;background:#fafafa;border-radius:4px;">
           <span style="color:#666;">Subtotal: </span>
-          <strong style="font-size:1.05em;">$${(it.precio_unitario*it.cantidad).toFixed(2)}</strong>
+          <strong style="font-size:1.05em;">$${subtotal_usd.toFixed(2)} (~Bs ${subtotal_bs.toFixed(2)})</strong>
         </div>
         ${descuentoText}
         ${calc.promo ? `<div style="margin-top:8px;"><button class="btn-promo-details" onclick="window._caja.showPromoDetails(${idx})">📋 Ver detalles de promoción</button></div>` : ''}
@@ -522,7 +591,7 @@ function renderCart() {
         </label>
         ${promoSelectHtml}
         <div style="margin-left:auto;font-weight:700;" class="${totalLineaClass}">
-          Total línea: $${lineaTotal.toFixed(2)}
+          Total línea: $${lineaTotal_usd.toFixed(2)} (~Bs ${lineaTotal_bs.toFixed(2)})
         </div>
       </div>
     </div>`;
@@ -534,17 +603,17 @@ function renderCart() {
       ${totalDescuentos > 0 ? `
       <div>
         <span style="color:#666;font-size:0.95em;">Total descuentos: </span>
-        <span class="total-descuentos">-$${totalDescuentos.toFixed(2)}</span>
+        <span class="total-descuentos">-$${totalDescuentos.toFixed(2)} (~Bs ${totalDescuentos_bs.toFixed(2)})</span>
       </div>
       ` : ''}
       <div style="text-align:right;margin-left:auto;">
         <div style="margin-bottom:4px;">
           <span style="color:#666;font-size:0.95em;">Subtotal: </span>
-          <span style="font-weight:600;">$${(total + totalDescuentos).toFixed(2)}</span>
+          <span style="font-weight:600;">$${(total + totalDescuentos).toFixed(2)} (~Bs ${ (total_bs + totalDescuentos_bs).toFixed(2) })</span>
         </div>
         <div style="border-top:2px solid #4caf50;padding-top:8px;margin-top:8px;">
           <span style="color:#666;font-size:0.95em;">Total a pagar: </span>
-          <span class="total-final">$${total.toFixed(2)}</span>
+          <span class="total-final">$${total.toFixed(2)} (~Bs ${total_bs.toFixed(2)})</span>
         </div>
       </div>
     </div>

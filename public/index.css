@@ -1,434 +1,207 @@
-/*
-  index.css - Página de Inicio de Sesión
-  Diseño moderno, elegante y completamente responsive
-  Sistema ERP Modasoft
-*/
-
+/* ==================================== */
+/* 1. Variables Base y Reset */
+/* ==================================== */
 :root {
-  /* Colores principales */
-  --primary: #2563eb;
-  --primary-dark: #1e40af;
-  --primary-light: #3b82f6;
-  --accent: #06b6d4;
-  --accent-dark: #0891b2;
-  
-  /* Colores de superficie */
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface-alt: #f1f5f9;
-  
-  /* Colores de texto */
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-  
-  /* Colores de estado */
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-  
-  /* Espaciado */
-  --spacing-xs: 0.5rem;
-  --spacing-sm: 0.75rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --spacing-xl: 2rem;
-  --spacing-2xl: 3rem;
-  
-  /* Tipografía */
-  --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 2rem;
-  --font-size-4xl: 2.5rem;
-  
-  /* Bordes y radios */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
-  --radius-full: 9999px;
-  
-  /* Sombras */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  
-  /* Transiciones */
-  --transition-fast: 150ms ease;
-  --transition-base: 200ms ease;
-  --transition-slow: 300ms ease;
-  
-  /* Layout */
-  --container-max-width: 1200px;
-  --container-padding: 1.5rem;
+  --color-bg-dark: #0f162a; /* Fondo muy oscuro, casi negro-azulado */
+  --color-bg-card: rgba(30, 45, 70, 0.95); /* Fondo de tarjeta semitransparente azul oscuro */
+  --color-border-glow: #007bff; /* Azul vibrante para bordes y brillos */
+  --color-text-light: #e0f7fa; /* Texto claro */
+  --color-input-bg: rgba(255, 255, 255, 0.1); /* Fondo de input muy sutil */
+  --color-input-text: #ffffff; /* Texto dentro del input */
+  --color-primary-btn: linear-gradient(to top, #007bff, #00bfff); /* Gradiente para botón */
+  --color-status-ok: #4caf50; /* ¡El color verde para el estado! */
+  --font-family-base: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --shadow-glow: 0 0 15px rgba(0, 123, 255, 0.6);
 }
 
-/* Reset y base */
 * {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
-  overflow: hidden; /* Elimina scroll vertical */
+/* ==================================== */
+/* 2. Estilo de Pantalla Completa y Fondo */
+/* ==================================== */
+
+body, html{
   height: 100%;
-}
-
-body {
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  line-height: 1.6;
-  color: var(--text-primary);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-attachment: fixed;
-  height: 100vh;
-  overflow: hidden; /* Elimina scroll vertical y horizontal */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Container principal */
-.container {
-  max-width: var(--container-max-width);
-  margin: 0 auto;
-  padding: var(--container-padding);
-  height: 100vh;
-  overflow: hidden;
+  font-family: var(--font-family-base);
+  color: var(--color-text-light);
+  background-color: var(--color-bg-dark); /* Color de respaldo si la imagen falla */
+  
+  /* URL de una imagen pública de fondo tecnológico */
+  background-image: url('tech-background3.jpeg');
+  background-size: cover; /* Asegura que cubra toda la pantalla */
+  background-position: center; /* Centra la imagen */
+  background-repeat: no-repeat; /* Evita que se repita */
+  
   display: flex;
-  flex-direction: column;
-}
-
-.container > main {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
-}
-
-/* Header */
-.header {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-lg) var(--spacing-xl);
-  margin-bottom: var(--spacing-xl);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  animation: fadeInDown 0.6s ease;
-}
-
-.header h1 {
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.status-msg {
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background: var(--surface-alt);
-  border-radius: var(--radius-sm);
-  display: inline-block;
-  max-width: fit-content;
-}
-
-/* Hero Section */
-.hero {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl);
-  margin-bottom: var(--spacing-xl);
-  box-shadow: var(--shadow-xl);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  animation: fadeInUp 0.6s ease 0.2s both;
-}
-
-.eyebrow {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--primary);
-  margin-bottom: var(--spacing-xs);
-}
-
-.hero h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: 800;
-  line-height: 1.2;
-  margin: var(--spacing-sm) 0;
-  color: var(--text-primary);
-}
-
-.hero p {
-  font-size: var(--font-size-lg);
-  color: var(--text-secondary);
-  line-height: 1.7;
-}
-
-.center {
-  display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center; 
+  overflow: hidden; 
 }
-
-/* Card principal */
-.card {
-  background: var(--surface);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-2xl);
-  box-shadow: var(--shadow-xl);
-  animation: fadeInUp 0.6s ease 0.4s both;
-}
-
-/* Sección de login */
-.section {
+/* El contenedor principal abarca el espacio y centra el contenido */
+.container {
+  width: 100%; 
+  max-width: 450px; /* Limita el ancho para un mejor posicionamiento del estado */
+  height: 100%; 
+  position: relative; /* Esencial para posicionar el header absoluto */
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  justify-content: center; 
+  align-items: center;
+}
+
+/* ==================================== */
+/* 3. Header y Estado (Lo Verde) */
+/* ==================================== */
+
+.header {
+  /* Posicionamiento del estado en la esquina superior derecha, fuera de la tarjeta */
+  position: absolute; 
+  top: 20px; 
+  right: 20px;
+  width: auto;
+  padding: 0;
+  margin: 0;
+}
+
+/* Ocultamos el título H1 "ERP simple - Modasoft" */
+.header h1 {
+  display: none; 
+}
+
+/* Estilo del indicador de estado (el elemento que tiene lo verde) */
+#statusDisplay {
+  font-size: 0.8em;
+  padding: 5px 10px;
+  border: 1px solid var(--color-status-ok); 
+  color: var(--color-status-ok); /* ¡Aplica el color verde al texto! */
+  border-radius: 4px;
+  background-color: rgba(76, 175, 80, 0.1); /* Fondo verde muy sutil */
+  display: block;
+  white-space: nowrap; /* Para que no se rompa la línea */
+}
+
+/* ==================================== */
+/* 4. Tarjeta de Login (Card) */
+/* ==================================== */
+
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid rgba(0, 123, 255, 0.3);
+  border-radius: 20px;
+  
+  /* MODIFICACIÓN: Reducimos el padding vertical de 40px a 25px */
+  padding: 1px 40px; 
+  
+  width: 100%;
+  max-width: 380px; 
+  box-shadow: var(--shadow-glow);
+  backdrop-filter: blur(5px);
+  animation: fadeIn 1s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.section {
+  text-align: center;
+}
+
+/* Implementación del "MODASOFT" encima del título */
+.card::before {
+  content: "MODASOFT"; 
+  display: block;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--color-border-glow);
+  margin-bottom: 10px;
+  text-shadow: var(--shadow-glow);
 }
 
 .section h2 {
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: var(--spacing-md);
-  text-align: center;
+  font-size: 1.8em;
+  margin-bottom: 25px;
+  letter-spacing: 1.5px;
+  color: var(--color-text-light);
+  text-shadow: 0 0 5px rgba(0, 123, 255, 0.4);
 }
 
-/* Campos de formulario */
+/* ==================================== */
+/* 5. Inputs y Botón */
+/* ==================================== */
+
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
+  margin-bottom: 20px;
+  text-align: left;
 }
 
 .field label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-xs);
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.field input {
+.field input[type="text"],
+.field input[type="password"] {
   width: 100%;
-  padding: var(--spacing-md);
-  font-size: var(--font-size-base);
-  font-family: var(--font-family);
-  border: 2px solid #e2e8f0;
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--text-primary);
-  transition: all var(--transition-base);
+  padding: 12px 15px;
+  border: 1px solid rgba(0, 123, 255, 0.2);
+  border-radius: 8px;
+  background-color: var(--color-input-bg);
+  color: var(--color-input-text);
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .field input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--color-border-glow);
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.15);
 }
 
 .field input::placeholder {
-  color: var(--text-light);
+  color: rgba(255, 255, 255, 0.4);
 }
 
-/* Botones */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  font-family: var(--font-family);
+  width: 100%;
+  padding: 12px;
+  margin-top: 15px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
   cursor: pointer;
-  transition: all var(--transition-base);
-  text-decoration: none;
-  position: relative;
-  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.3s;
+  text-transform: uppercase;
 }
 
-.btn-primary,
 .btn.primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: var(--color-primary-btn);
   color: #ffffff;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 15px rgba(0, 123, 255, 0.5);
 }
 
-.btn-primary:hover,
 .btn.primary:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.8);
 }
 
-.btn-primary:active,
 .btn.primary:active {
   transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(0, 123, 255, 0.5);
 }
 
-.btn-primary:focus,
-.btn.primary:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
-}
-
-/* Mensajes */
 .msg {
-  padding: var(--spacing-md);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  text-align: center;
-  margin-top: var(--spacing-md);
-  min-height: 2.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.msg.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success);
-  border: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.msg.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--error);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-/* Utilidades */
-.muted {
-  color: var(--text-muted);
-}
-
-/* Animaciones */
-@keyframes fadeInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  :root {
-    --container-padding: 1rem;
-    --font-size-3xl: 2rem;
-    --font-size-2xl: 1.5rem;
-  }
-  
-  .container {
-    padding: var(--spacing-md);
-  }
-  
-  .header {
-    padding: var(--spacing-md);
-  }
-  
-  .header h1 {
-    font-size: var(--font-size-xl);
-  }
-  
-  .hero {
-    padding: var(--spacing-xl);
-  }
-  
-  .hero h1 {
-    font-size: var(--font-size-2xl);
-  }
-  
-  .card {
-    padding: var(--spacing-xl);
-  }
-  
-  .btn {
-    width: 100%;
-    padding: var(--spacing-md) var(--spacing-lg);
-  }
-  
-  .field input {
-    padding: var(--spacing-sm) var(--spacing-md);
-  }
-}
-
-@media (max-width: 480px) {
-  :root {
-    --container-padding: 0.75rem;
-  }
-  
-  .header {
-    padding: var(--spacing-sm);
-    border-radius: var(--radius-md);
-  }
-  
-  .hero {
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-md);
-  }
-  
-  .card {
-    padding: var(--spacing-lg);
-    border-radius: var(--radius-md);
-  }
-  
-  .section h2 {
-    font-size: var(--font-size-xl);
-  }
-}
-
-/* Accesibilidad */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Modo oscuro (preparado para futuro) */
-@media (prefers-color-scheme: dark) {
-  /* Se puede implementar soporte para modo oscuro aquí */
+  margin-top: 25px;
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.6);
 }
