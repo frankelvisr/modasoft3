@@ -2005,10 +2005,10 @@ app.get('/api/reportes/ventas-temporada', requiereRol('administrador'), async (r
 
     // Intentar usar la vista si existe, sino calcular manualmente
     try {
-      let query = `SELECT anio, mes, trimestre, periodo, ingreso_total, unidades_vendidas 
-                   FROM vista_ventas_temporada 
-                   WHERE fecha_venta >= ? AND fecha_venta < ?
-                   ORDER BY anio DESC, mes DESC LIMIT 48`;
+  let query = `SELECT anio, mes, trimestre, periodo, ingreso_total, unidades_vendidas 
+       FROM vista_ventas_temporada 
+       WHERE fecha_hora >= ? AND fecha_hora < ?
+       ORDER BY anio DESC, mes DESC LIMIT 48`;
       const [rows] = await pool.query(query, [startStr, endStr]);
 
       if (rows.length > 0) {
@@ -2631,8 +2631,8 @@ app.get('/api/reportes/margen-categoria', requiereRol('administrador'), async (r
       };
     }));
 
-    // Ordenar por utilidad total descendente
-    categoriasConDatos.sort((a, b) => b.utilidad_total - a.utilidad_total);
+  // Ordenar por margen promedio descendente (mayor margen primero)
+  categoriasConDatos.sort((a, b) => b.margen_promedio - a.margen_promedio);
 
     res.json({ ok: true, categorias: categoriasConDatos });
   } catch (e) {
