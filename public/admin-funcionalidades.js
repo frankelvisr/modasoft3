@@ -753,8 +753,10 @@ async function cargarIngresos() {
 
 // ==================== FUNCIONES DE VENTAS (ADMIN) ====================
 async function cargarVentasAdmin(busqueda = '') {
-    const cont = document.getElementById('reporteVentas');
-    const lista = cont || document.getElementById('listaVentasAdmin');
+    // Priorizar el contenedor específico del panel de Ventas (listaVentasAdmin).
+    // Antes se usaba 'reporteVentas' primero (que existe también en la sección de reportes)
+    // lo que hacía que el contenido se pintara en el reporte y no en el panel de gestión.
+    const lista = document.getElementById('listaVentasAdmin') || document.getElementById('reporteVentas');
     if (!lista) return;
     
     try {
