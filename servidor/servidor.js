@@ -1800,6 +1800,28 @@ app.get('/api/admin/clientes', requiereRol('administrador'), async (req, res) =>
   }
 });
 
+// Crear cliente (administrador)
+app.post('/api/admin/clientes', requiereRol('administrador'), async (req, res) => {
+  try {
+    const { nombre, cedula, telefono, email } = req.body || {};
+    if (!nombre || nombre.trim() === '') return res.status(400).json({ ok: false, message: 'Nombre requerido' });
+
+    // Si se envía cédula y ya existe, devolver ese cliente
+    if (cedula) {
+      const [exists] = await pool.query('SELECT id_cliente FROM clientes WHERE cedula = ? LIMIT 1', [cedula]);
+      if (exists && exists.length > 0) {
+        return res.json({ ok: true, id_cliente: exists[0].id_cliente, message: 'Cliente ya existe' });
+      }
+    }
+
+    const [ins] = await pool.query('INSERT INTO clientes (nombre, cedula, telefono, email) VALUES (?, ?, ?, ?)', [nombre, cedula || null, telefono || null, email || null]);
+    return res.json({ ok: true, id_cliente: ins.insertId });
+  } catch (e) {
+    console.error('Error crear cliente admin:', e.message || e);
+    return res.status(500).json({ ok: false, message: 'Error del servidor al crear cliente' });
+  }
+});
+
 // Endpoint administrativo: obtener ventas (historial) completas de un cliente por cédula
 app.get('/api/admin/clientes/ventas', requiereRol('administrador'), async (req, res) => {
   try {

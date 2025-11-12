@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Gestión de clientes
     if (document.getElementById('form-cliente')) {
         document.getElementById('form-cliente').addEventListener('submit', registrarCliente);
-        cargarClientes();
+        cargarClientesForm();
     }
 
     // Gestión de promociones
@@ -347,7 +347,7 @@ async function cargarCompras() {
 }
 
 // ==================== FUNCIONES DE CLIENTES ====================
-async function cargarClientes(busqueda = '') {
+async function cargarClientesForm(busqueda = '') {
     const cont = document.getElementById('reporteClientes');
     if (!cont) {
         // Si no existe el contenedor de reportes, usar el de clientes normal
@@ -357,8 +357,9 @@ async function cargarClientes(busqueda = '') {
     }
     
     try {
-        const res = await fetch('/api/clientes');
-        const data = await res.json();
+    // Usar endpoint administrativo para listar clientes cuando se requiere listado completo
+    const res = await fetch('/api/admin/clientes');
+    const data = await res.json();
         if (!data || !data.clientes || data.clientes.length === 0) {
             cont.innerHTML = '<div class="item">No hay clientes registrados.</div>';
             return;
@@ -411,7 +412,7 @@ async function cargarClientes(busqueda = '') {
 async function registrarCliente(e) {
     e.preventDefault();
     try {
-        const res = await fetch('/api/clientes', {
+        const res = await fetch('/api/admin/clientes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
