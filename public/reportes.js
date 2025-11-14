@@ -11,19 +11,24 @@ document.head.appendChild(scriptPDF);
 
 // ==================== REPORTE DE COMPRAS ====================
 async function renderReporteCompras() {
+    console.log('🔍 renderReporteCompras iniciada');
     const cont = document.getElementById('reporteCompras');
     if (!cont) {
-        console.warn('Contenedor reporteCompras no encontrado');
+        console.error('❌ Contenedor reporteCompras no encontrado en el DOM');
         return;
     }
     
+    console.log('📦 Contenedor encontrado. Cargando datos...');
     cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando compras...</div>';
     
     try {
+        console.log('📡 Realizando fetch a /api/compras con credentials');
         const res = await fetch('/api/compras', { credentials: 'include' });
+        console.log('📡 Respuesta recibida:', res.status, res.statusText);
         
         if (!res.ok) {
             if (res.status === 401) {
+                console.warn('⚠️ No autenticado (401)');
                 cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
                 return;
             }
@@ -31,12 +36,15 @@ async function renderReporteCompras() {
         }
         
         const data = await res.json();
+        console.log('📊 Datos recibidos:', data);
         
         if (!data.compras || !Array.isArray(data.compras) || data.compras.length === 0) {
+            console.log('ℹ️ Sin datos de compras');
             cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay datos de compras registrados.</div>';
             return;
         }
 
+        console.log('✅ Renderizando', data.compras.length, 'compras');
         let totalGeneral = 0;
         let html = `<div id="tabla-compras-export" style="padding:20px;background:white;border-radius:8px;">
             <h3 style="text-align:center;margin-bottom:10px;color:#333;font-size:1.3em;">🛒 Reporte de Compras</h3>
@@ -103,9 +111,11 @@ async function renderReporteCompras() {
         cont.appendChild(btnContainer);
 
     } catch (e) {
-        console.error('Error cargando compras:', e);
+        console.error('❌ Error en renderReporteCompras:', e);
+        console.error('Error stack:', e.stack);
         cont.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">
             ❌ Error al cargar compras: ${e.message}
+            <br><small style="color:#999;margin-top:10px;display:block;">${e.stack}</small>
         </div>`;
     }
 }
@@ -180,22 +190,27 @@ window.exportarComprasACSV = function() {
 
 // ==================== REPORTE DE VENTAS ====================
 async function cargarVentasReporte(busqueda = '') {
+    console.log('🔍 cargarVentasReporte iniciada');
     const lista = document.getElementById('reporteVentas');
     if (!lista) {
-        console.warn('Contenedor reporteVentas no encontrado');
+        console.error('❌ Contenedor reporteVentas no encontrado en el DOM');
         return;
     }
     
+    console.log('📦 Contenedor encontrado. Cargando datos...');
     lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando ventas...</div>';
     
     try {
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
+        console.log('📡 Realizando fetch a /api/admin/ventas?year=' + year + '&month=' + month);
         const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
+        console.log('📡 Respuesta recibida:', res.status, res.statusText);
         
         if (!res.ok) {
             if (res.status === 401) {
+                console.warn('⚠️ No autenticado (401)');
                 lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
                 return;
             }
@@ -203,8 +218,10 @@ async function cargarVentasReporte(busqueda = '') {
         }
         
         const data = await res.json();
+        console.log('📊 Datos recibidos:', data);
 
         if (!data || !data.ventas || !Array.isArray(data.ventas) || data.ventas.length === 0) {
+            console.log('ℹ️ Sin datos de ventas');
             lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay ventas registradas para el período seleccionado.</div>';
             return;
         }
@@ -290,9 +307,11 @@ async function cargarVentasReporte(busqueda = '') {
         lista.appendChild(btnContainer);
 
     } catch (error) {
-        console.error('Error cargando ventas:', error);
+        console.error('❌ Error en cargarVentasReporte:', error);
+        console.error('Error stack:', error.stack);
         lista.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">
             ❌ Error al cargar ventas: ${error.message}
+            <br><small style="color:#999;margin-top:10px;display:block;">${error.stack}</small>
         </div>`;
     }
 }
@@ -368,20 +387,25 @@ window.exportarVentasACSV = function() {
 // ==================== REPORTE DE CLIENTES ====================
 async function cargarClientes(busqueda = '') {
     // Buscar el contenedor correcto
+    console.log('🔍 cargarClientes iniciada');
     const lista = document.getElementById('reporteClientes');
     if (!lista) {
-        console.warn('Contenedor reporteClientes no encontrado');
+        console.error('❌ Contenedor reporteClientes no encontrado en el DOM');
         return;
     }
     
     // Mostrar estado de carga
+    console.log('📦 Contenedor encontrado. Cargando datos...');
     lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando clientes...</div>';
     
     try {
+        console.log('📡 Realizando fetch a /api/admin/clientes');
         const res = await fetch('/api/admin/clientes', { credentials: 'include' });
+        console.log('📡 Respuesta recibida:', res.status, res.statusText);
         
         if (!res.ok) {
             if (res.status === 401) {
+                console.warn('⚠️ No autenticado (401)');
                 lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
                 return;
             }
@@ -483,11 +507,12 @@ async function cargarClientes(busqueda = '') {
         topBtn.style.cssText = 'margin-left:10px;background:#111827;color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-weight:500;';
         topBtn.onclick = () => cargarTopClientes(10);
         lista.appendChild(topBtn);
-
     } catch (error) {
-        console.error('Error cargando clientes:', error);
+        console.error('❌ Error en cargarClientes:', error);
+        console.error('Error stack:', error.stack);
         lista.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">
             ❌ Error al cargar clientes: ${error.message}
+            <br><small style="color:#999;margin-top:10px;display:block;">${error.stack}</small>
         </div>`;
     }
 }

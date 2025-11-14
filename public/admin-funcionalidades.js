@@ -332,18 +332,27 @@ async function registrarCompra(e) {
 
 async function cargarCompras(busqueda = '') {
     try {
-        const res = await fetch('/api/compras');
+        const res = await fetch('/api/compras', { credentials: 'include' });
+        if (!res.ok) {
+            const lista = document.getElementById('listaCompras');
+            if (res.status === 401) {
+                if (lista) lista.innerHTML = '<div class="item">No autorizado. Inicia sesión.</div>';
+                return;
+            }
+            if (lista) lista.innerHTML = `<div class="item">Error HTTP: ${res.status}</div>`;
+            return;
+        }
         const data = await res.json();
         const lista = document.getElementById('listaCompras');
         if (!lista) return;
         
-        if (!data.compras || data.compras.length === 0) {
+        let compras = Array.isArray(data.compras) ? data.compras : (Array.isArray(data) ? data : []);
+        if (compras.length === 0) {
             lista.innerHTML = '<div class="item">No hay compras registradas</div>';
             return;
         }
         
         // Filtrar compras si hay búsqueda
-        let compras = data.compras;
         if (busqueda) {
             const b = busqueda.toLowerCase();
             compras = compras.filter(c => 
@@ -400,14 +409,22 @@ async function cargarClientesForm(busqueda = '') {
     
     try {
     // Usar endpoint administrativo para listar clientes cuando se requiere listado completo
-    const res = await fetch('/api/admin/clientes');
+    const res = await fetch('/api/admin/clientes', { credentials: 'include' });
+    if (!res.ok) {
+        if (res.status === 401) {
+            cont.innerHTML = '<div class="item">No autorizado. Inicia sesión.</div>';
+            return;
+        }
+        cont.innerHTML = `<div class="item">Error HTTP: ${res.status}</div>`;
+        return;
+    }
     const data = await res.json();
-        if (!data || !data.clientes || data.clientes.length === 0) {
+    let clientes = Array.isArray(data.clientes) ? data.clientes : (Array.isArray(data) ? data : []);
+        if (!clientes || clientes.length === 0) {
             cont.innerHTML = '<div class="item">No hay clientes registrados.</div>';
             return;
         }
         
-        let clientes = data.clientes;
         if (busqueda) {
             const b = busqueda.toLowerCase();
             clientes = clientes.filter(c => 
@@ -962,15 +979,23 @@ async function cargarClientes(busqueda = '') {
     
     try {
         const url = '/api/admin/clientes' + (busqueda ? `?busqueda=${encodeURIComponent(busqueda)}` : '');
-        const res = await fetch(url);
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) {
+            if (res.status === 401) {
+                lista.innerHTML = '<div class="item">No autorizado. Inicia sesión.</div>';
+                return;
+            }
+            lista.innerHTML = `<div class="item">Error HTTP: ${res.status}</div>`;
+            return;
+        }
         const data = await res.json();
-        
-        if (!data.ok || !data.clientes || data.clientes.length === 0) {
+        const clientes = Array.isArray(data.clientes) ? data.clientes : (Array.isArray(data) ? data : []);
+        if (!clientes || clientes.length === 0) {
             lista.innerHTML = '<div class="item">No hay clientes registrados.</div>';
             return;
         }
         
-        lista.innerHTML = data.clientes.map(cliente => `
+        lista.innerHTML = clientes.map(cliente => `
             <div class="item">
                 <div>
                     <strong>${cliente.nombre}</strong><br>
@@ -1253,42 +1278,17 @@ async function renderReporteInventario() {
     }
 }
 
-// Ahora manejada en reportes.js - mantener para compatibilidad
-async function renderReporteCompras() {
-    // Delegar a la implementación en reportes.js
-    if (typeof window.renderReporteCompras === 'function') {
-        try { await window.renderReporteCompras(); } catch (e) { console.error('Error delegando renderReporteCompras:', e); }
-        return;
-    }
-    console.error('renderReporteCompras no está disponible en reportes.js');
-}
+// Nota: renderReporteCompras está definida en reportes.js y cargada antes
+// No crear wrapper aquí para evitar sobrescrituras
 
-// Manejada en reportes.js
-async function renderReporteTemporada() {
-    if (typeof fetchVentasTemporada === 'function') {
-        try { await fetchVentasTemporada('actual'); } catch (e) { console.error('Error delegando renderReporteTemporada:', e); }
-        return;
-    }
-    console.error('fetchVentasTemporada no está disponible en reportes.js');
-}
+// Nota: fetchVentasTemporada está definida en reportes.js
+// No crear wrapper aquí para evitar sobrescrituras
 
-// Manejada en reportes.js
-async function renderReporteRotacion() {
-    if (typeof cargarRotacionInventario === 'function') {
-        try { await cargarRotacionInventario(); } catch (e) { console.error('Error delegando renderReporteRotacion:', e); }
-        return;
-    }
-    console.error('cargarRotacionInventario no está disponible en reportes.js');
-}
+// Nota: cargarRotacionInventario está definida en reportes.js
+// No crear wrapper aquí para evitar sobrescrituras
 
-// Manejada en reportes.js
-async function renderReporteClientes() {
-    if (typeof cargarClientes === 'function') {
-        try { await cargarClientes(); } catch (e) { console.error('Error delegando renderReporteClientes:', e); }
-        return;
-    }
-    console.error('cargarClientes no está disponible en reportes.js');
-}
+// Nota: cargarClientes está definida en reportes.js
+// No crear wrapper aquí para evitar sobrescrituras
 
 function exportarReporteUtilidad() {
     try {
@@ -1545,6 +1545,54 @@ if (document.readyState === 'loading') {
 } else {
     // Si el script carga después de que el DOM esté listo
     attachReportListeners();
+}
+
+// Wrapear switchTab para garantizar que los cargadores de listas se ejecuten
+if (typeof window.switchTab === 'function') {
+    const __origSwitchTab = window.switchTab;
+    window.switchTab = function(tab) {
+        try {
+            __origSwitchTab(tab);
+        } catch (e) {
+            console.error('Error ejecutando switchTab original:', e);
+        }
+        // Ejecutar los cargadores relevantes un poco después para asegurar que el panel esté visible
+        setTimeout(() => {
+            try {
+                switch (tab) {
+                    case 'compras':
+                        if (typeof cargarCompras === 'function') cargarCompras();
+                        break;
+                    case 'ventas':
+                        if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
+                        break;
+                    case 'clientes':
+                        // Panel de gestión de clientes
+                        if (typeof cargarClientesAdmin === 'function') cargarClientesAdmin();
+                        // También cargar listado simple si existe
+                        if (typeof cargarClientes === 'function') cargarClientes();
+                        break;
+                    case 'reporte-compras':
+                        if (typeof renderReporteCompras === 'function') renderReporteCompras();
+                        break;
+                    case 'reporte-ventas':
+                        if (typeof cargarVentasReporte === 'function') cargarVentasReporte();
+                        break;
+                    case 'reporte-clientes':
+                        if (typeof cargarClientes === 'function') cargarClientes();
+                        break;
+                    case 'reporte-utilidad':
+                        if (typeof cargarReporteUtilidad === 'function') cargarReporteUtilidad();
+                        break;
+                    case 'reporte-ganancias':
+                        if (typeof cargarReporteGanancias === 'function') cargarReporteGanancias();
+                        break;
+                }
+            } catch (e) {
+                console.error('Error ejecutando loaders tras switchTab:', e);
+            }
+        }, 150);
+    };
 }
 
 // ==================== FUNCIONES GERENCIALES ====================
