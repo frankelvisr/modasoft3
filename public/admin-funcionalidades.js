@@ -99,6 +99,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reportes
     cargarReporteUtilidad();
 
+    // Si el panel de reportes existe en la página, inicializar el sistema de reportes
+    if (document.getElementById('reportesPanel')) {
+        try {
+            if (typeof prepararReportes === 'function') prepararReportes();
+        } catch (e) {
+            console.error('Error al inicializar prepararReportes():', e);
+        }
+    }
+
     // Botones de nuevos reportes
     const btnInv = document.getElementById('btnReporteInventario');
     if (btnInv) btnInv.addEventListener('click', renderReporteInventario);
