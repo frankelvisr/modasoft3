@@ -20,7 +20,7 @@ async function renderReporteCompras() {
     cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando compras...</div>';
     
     try {
-        const res = await fetch('/api/compras');
+        const res = await fetch('/api/compras', { credentials: 'include' });
         
         if (!res.ok) {
             if (res.status === 401) {
@@ -178,7 +178,7 @@ async function cargarVentasAdmin(busqueda = '') {
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
-        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`);
+        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
         
         if (!res.ok) {
             if (res.status === 401) {
@@ -350,7 +350,7 @@ async function cargarClientes(busqueda = '') {
     lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando clientes...</div>';
     
     try {
-        const res = await fetch('/api/admin/clientes');
+        const res = await fetch('/api/admin/clientes', { credentials: 'include' });
         
         if (!res.ok) {
             if (res.status === 401) {
@@ -599,7 +599,7 @@ async function cargarReporteUtilidad() {
     cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando reporte de utilidad...</div>';
     
     try {
-        const res = await fetch('/api/reportes/utilidad-productos');
+        const res = await fetch('/api/reportes/utilidad-productos', { credentials: 'include' });
         
         if (!res.ok) {
             if (res.status === 401) {
@@ -815,7 +815,7 @@ async function renderReporteInventario() {
     if (!cont) return;
     cont.innerHTML = '<div class="item">Cargando inventario...</div>';
     try {
-        const res = await fetch('/api/reportes/inventario-actual');
+        const res = await fetch('/api/reportes/inventario-actual', { credentials: 'include' });
         const data = await res.json();
         if (!data || !data.rows || !Array.isArray(data.rows) || data.rows.length === 0) {
             cont.innerHTML = '<div class="item">No hay datos de inventario.</div>';
@@ -856,7 +856,7 @@ async function fetchVentasTemporada(periodo) {
     
     try {
         // Simular datos por período
-        const res = await fetch('/api/admin/ventas');
+        const res = await fetch('/api/admin/ventas', { credentials: 'include' });
         const data = await res.json();
         if (!data || !data.ventas || !Array.isArray(data.ventas) || data.ventas.length === 0) {
             if (cont.id === 'temporadaChart') return;
@@ -912,7 +912,7 @@ async function cargarRotacionInventario() {
     if (!cont) return;
     cont.innerHTML = '<div class="item">Cargando rotación...</div>';
     try {
-        const res = await fetch('/api/reportes/rotacion-inventario?top=100');
+        const res = await fetch('/api/reportes/rotacion-inventario?top=100', { credentials: 'include' });
         const data = await res.json();
         if (data && data.rows && data.rows.length > 0) {
             let html = `<table style="width:100%;border-collapse:collapse;">

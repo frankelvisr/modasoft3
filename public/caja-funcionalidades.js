@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadProductosForCaja() {
   try {
-    const res = await fetch('/api/productos');
+    const res = await fetch('/api/productos', { credentials: 'include' });
     const data = await res.json();
     productosCache = data.productos || [];
     const sel = document.getElementById('ventaProducto');
@@ -137,7 +137,7 @@ async function getTasa() {
     return tasaState.price;
   }
   try {
-    const res = await fetch('/api/tasa-bcv');
+    const res = await fetch('/api/tasa-bcv', { credentials: 'include' });
     const j = await res.json();
     applyTasaApiResponse(j);
     tasaLastFetchTs = Date.now();
@@ -164,7 +164,7 @@ async function getTasa() {
 async function buscarClientePorCedula(cedula) {
   if (!cedula) return;
   try {
-    const res = await fetch('/api/clientes/buscar?cedula=' + encodeURIComponent(cedula));
+    const res = await fetch('/api/clientes/buscar?cedula=' + encodeURIComponent(cedula), { credentials: 'include' });
     if (!res.ok) return;
     const j = await res.json();
     if (j && j.cliente) {
@@ -199,7 +199,7 @@ async function ensureProductoTieneCategoria(prod) {
 async function loadPromociones() {
   try {
     console.log('[LOAD PROMOCIONES] Iniciando carga...');
-    const res = await fetch('/api/promociones/activas');
+    const res = await fetch('/api/promociones/activas', { credentials: 'include' });
     if (!res.ok) {
       console.error('[LOAD PROMOCIONES] Error HTTP:', res.status, res.statusText);
       promocionesCache = [];
@@ -236,7 +236,7 @@ async function loadPromociones() {
 
 async function loadCategorias() {
   try {
-    const res = await fetch('/api/categorias');
+    const res = await fetch('/api/categorias', { credentials: 'include' });
     if (!res.ok) {
       categoriasCache = [];
       return;
@@ -716,6 +716,7 @@ async function onPagarVenta() {
   const tipo_pago = document.getElementById('ventaTipoPago').value || 'Efectivo';
   try {
     const res = await fetch('/api/caja/venta', {
+      credentials: 'include',
       method: 'POST',
       headers: {'Content-Type':'application/json'},
         body: JSON.stringify({ 

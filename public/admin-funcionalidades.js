@@ -806,7 +806,7 @@ async function cargarVentasAdmin(busqueda = '') {
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
-        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`);
+        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
         const data = await res.json();
 
         if (!data.ok) {
@@ -826,7 +826,7 @@ async function cargarVentasAdmin(busqueda = '') {
         }
 
         // Usar el nuevo endpoint que incluye totales por tipo de pago
-        const resDetalle = await fetch(`/api/reportes/ventas-detalle?year=${year}&month=${month}`);
+        const resDetalle = await fetch(`/api/reportes/ventas-detalle?year=${year}&month=${month}`, { credentials: 'include' });
         const dataDetalle = await resDetalle.json();
         
         if (dataDetalle.ok && dataDetalle.ventas) {
