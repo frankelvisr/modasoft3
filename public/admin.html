@@ -11,7 +11,8 @@
         // Ocultar todos los paneles
         const panels = ['dashboardPanel', 'inventarioPanel', 'comprasPanel', 'ventasPanel', 'clientesPanel', 
                        'catalogoPanel', 'promocionesPanel', 'contabilidadPanel', 'cuentas_pagarPanel', 
-                       'cajaPanel', 'conciliacionPanel', 'reportesPanel'];
+                       'cajaPanel', 'conciliacionPanel', 'reportesPanel', 'reporte-comprasPanel', 'reporte-ventasPanel', 
+                       'reporte-clientesPanel', 'reporte-utilidadPanel'];
         const sidebarLinks = document.querySelectorAll('.sidebar-menu-link');
         
         panels.forEach(panelId => {
@@ -34,7 +35,11 @@
             'cuentas_pagar': ['cuentas_pagarPanel', 'cuentas_pagar'],
             'caja': ['cajaPanel', 'caja'],
             'conciliacion': ['conciliacionPanel', 'conciliacion'],
-            'reportes': ['reportesPanel', 'reportes']
+            'reportes': ['reportesPanel', 'reportes'],
+            'reporte-compras': ['reporte-comprasPanel', 'reporte-compras'],
+            'reporte-ventas': ['reporte-ventasPanel', 'reporte-ventas'],
+            'reporte-clientes': ['reporte-clientesPanel', 'reporte-clientes'],
+            'reporte-utilidad': ['reporte-utilidadPanel', 'reporte-utilidad']
         };
         
         if (panelMap[tab]) {
@@ -80,8 +85,23 @@
                     if (typeof cargarConciliaciones === 'function') cargarConciliaciones();
                 }, 100);
             }
-            // Cargar reporte de utilidad si se selecciona reportes
-            if (tab === 'reportes') {
+            // Cargar reportes independientes
+            if (tab === 'reporte-compras') {
+                setTimeout(() => {
+                    if (typeof renderReporteCompras === 'function') renderReporteCompras();
+                }, 100);
+            }
+            if (tab === 'reporte-ventas') {
+                setTimeout(() => {
+                    if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
+                }, 100);
+            }
+            if (tab === 'reporte-clientes') {
+                setTimeout(() => {
+                    if (typeof cargarClientes === 'function') cargarClientes();
+                }, 100);
+            }
+            if (tab === 'reporte-utilidad') {
                 setTimeout(() => {
                     if (typeof cargarReporteUtilidad === 'function') cargarReporteUtilidad();
                 }, 100);
@@ -734,67 +754,28 @@
                 <div class="sidebar-section">
                     <div class="sidebar-section-title">Reportes</div>
                     <ul class="sidebar-menu">
-                        <li class="sidebar-menu-item has-submenu">
-                            <a href="#" class="sidebar-menu-link" onclick="toggleReportesSubmenu(); return false;">
-                                <span class="sidebar-menu-icon">📊</span>
-                                <span>Reportes</span>
-                                <span class="submenu-arrow">▼</span>
-                            </a>
-                            <ul class="sidebar-submenu" id="reportesSubmenu" style="display:none;">
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('utilidad'); return false;">
-                                        <span class="sidebar-menu-icon">💰</span>
-                                        <span>Utilidad por Producto</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('inventario'); return false;">
-                                        <span class="sidebar-menu-icon">📦</span>
-                                        <span>Inventario</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('compras'); return false;">
-                                        <span class="sidebar-menu-icon">🛒</span>
-                                        <span>Compras</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('ventas'); return false;">
-                                        <span class="sidebar-menu-icon">💵</span>
-                                        <span>Ventas</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('clientes'); return false;">
-                                        <span class="sidebar-menu-icon">👥</span>
-                                        <span>Clientes</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('temporada'); return false;">
-                                        <span class="sidebar-menu-icon">📈</span>
-                                        <span>Ventas por Temporada</span>
-                                    </a>
-                                </li>
-                                <li class="sidebar-menu-item">
-                                    <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); switchReporteTab('rotacion'); return false;">
-                                        <span class="sidebar-menu-icon">🔄</span>
-                                        <span>Rotación de Inventario</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        <li class="sidebar-menu-item" style="display:none;">
-                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); setTimeout(()=>renderReporteInventario(),120); return false;">
-                                <span class="sidebar-menu-icon">📦</span>
-                                <span>Reporte Inventario</span>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-compras'); return false;">
+                                <span class="sidebar-menu-icon">🛒</span>
+                                <span>Compras</span>
                             </a>
                         </li>
-                        <li class="sidebar-menu-item" style="display:none;">
-                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reportes'); setTimeout(()=>renderReporteCompras(),120); return false;">
-                                <span class="sidebar-menu-icon">🧾</span>
-                                <span>Reporte Compras</span>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-ventas'); return false;">
+                                <span class="sidebar-menu-icon">💰</span>
+                                <span>Ventas</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-clientes'); return false;">
+                                <span class="sidebar-menu-icon">👥</span>
+                                <span>Clientes</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-utilidad'); return false;">
+                                <span class="sidebar-menu-icon">💵</span>
+                                <span>Utilidad</span>
                             </a>
                         </li>
                     </ul>
@@ -1554,125 +1535,42 @@
             </div>
 
             <!-- PANEL DE REPORTES -->
-            <div id="reportesPanel" class="panel tabContent" style="display:none;">
-                <h2 style="color: #3b82f6; margin-bottom: 24px;">📊 Reportes Gerenciales</h2>
-                
-                <!-- Menú de pestañas de reportes -->
-                <div class="reporte-tabs-container" style="margin-bottom: 24px; border-bottom: 2px solid var(--border-color);">
-                    <button id="tab-utilidad" class="reporte-tab active" onclick="switchReporteTab('utilidad')">💰 Utilidad</button>
-                    <button id="tab-inventario" class="reporte-tab" onclick="switchReporteTab('inventario')">📦 Inventario</button>
-                    <button id="tab-compras" class="reporte-tab" onclick="switchReporteTab('compras')">🛒 Compras</button>
-                    <button id="tab-ventas" class="reporte-tab" onclick="switchReporteTab('ventas')">💵 Ventas</button>
-                    <button id="tab-clientes" class="reporte-tab" onclick="switchReporteTab('clientes')">👥 Clientes</button>
-                    <button id="tab-temporada" class="reporte-tab" onclick="switchReporteTab('temporada')">📈 Temporada</button>
-                    <button id="tab-rotacion" class="reporte-tab" onclick="switchReporteTab('rotacion')">🔄 Rotación</button>
-                </div>
-
-                
-
-                <!-- Reporte: Utilidad por Producto -->
-                <div id="reporte-utilidad" class="reporte-section" style="display:block;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Reporte de Utilidad por Producto</h4>
-                            <button onclick="exportarReporteUtilidad()" class="btn secondary">📥 Exportar</button>
-                        </div>
-                        <div id="tablaReporteUtilidad" style="overflow-x:auto;">
-                            <table style="width:100%;border-collapse:collapse;">
-                                <thead>
-                                    <tr style="background:var(--surface-alt);">
-                                        <th style="padding:var(--spacing-md);text-align:left;">Producto</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Costo</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Precio Venta</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Utilidad Unitaria</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Unidades Vendidas</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Utilidad Total</th>
-                                        <th style="padding:var(--spacing-md);text-align:right;">Margen %</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tbodyReporteUtilidad">
-                                    <tr><td colspan="7" style="padding:var(--spacing-md);text-align:center;">Cargando datos...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+            <!-- PANEL: REPORTE DE COMPRAS -->
+            <div id="reporte-comprasPanel" class="panel tabContent" style="display:none;">
+                <h2 style="color: #ef4444; margin-bottom: 24px;">🛒 Reporte de Compras</h2>
+                <div class="chart-container">
+                    <div id="reporteCompras" class="list">
+                        <div class="item">Cargando reporte de compras...</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Reporte: Inventario -->
-                <div id="reporte-inventario" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Inventario Actual</h4>
-                            <button id="btnReporteInventario" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteInventario" class="list">
-                            <div class="item">Pulsa "Generar" para ver el inventario actual.</div>
-                        </div>
+            <!-- PANEL: REPORTE DE VENTAS -->
+            <div id="reporte-ventasPanel" class="panel tabContent" style="display:none;">
+                <h2 style="color: #10b981; margin-bottom: 24px;">💰 Reporte de Ventas</h2>
+                <div class="chart-container">
+                    <div id="reporteVentas" class="list">
+                        <div class="item">Cargando reporte de ventas...</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Reporte: Compras -->
-                <div id="reporte-compras" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Reporte de Compras</h4>
-                            <button id="btnReporteCompras" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteCompras" class="list">
-                            <div class="item">Pulsa "Generar" para ver el reporte de compras.</div>
-                        </div>
+            <!-- PANEL: REPORTE DE CLIENTES -->
+            <div id="reporte-clientesPanel" class="panel tabContent" style="display:none;">
+                <h2 style="color: #3b82f6; margin-bottom: 24px;">👥 Reporte de Clientes</h2>
+                <div class="chart-container">
+                    <div id="reporteClientes" class="list">
+                        <div class="item">Cargando reporte de clientes...</div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Reporte: Ventas -->
-                <div id="reporte-ventas" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Resumen de Ventas</h4>
-                            <button id="btnReporteVentas" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteVentas" class="list">
-                            <div class="item">Pulsa "Generar" para ver el resumen de ventas.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reporte: Clientes -->
-                <div id="reporte-clientes" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Listado de Clientes</h4>
-                            <button id="btnReporteClientes" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteClientes" class="list">
-                            <div class="item">Pulsa "Generar" para ver el listado de clientes.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reporte: Ventas por Temporada -->
-                <div id="reporte-temporada" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Análisis de Ventas</h4>
-                            <button id="btnReporteTemporada" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteTemporada" class="list">
-                            <div class="item">Pulsa "Generar" para ver el análisis de ventas.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reporte: Rotación de Inventario -->
-                <div id="reporte-rotacion" class="reporte-section" style="display:none;">
-                    <div class="chart-container">
-                        <div class="chart-header">
-                            <h4 class="chart-title">Rotación de Inventario</h4>
-                            <button id="btnReporteRotacion" class="btn secondary">🔄 Generar</button>
-                        </div>
-                        <div id="reporteRotacion" class="list">
-                            <div class="item">Pulsa "Generar" para ver la rotación de inventario.</div>
-                        </div>
+            <!-- PANEL: REPORTE DE UTILIDAD -->
+            <div id="reporte-utilidadPanel" class="panel tabContent" style="display:none;">
+                <h2 style="color: #8b5cf6; margin-bottom: 24px;">💵 Reporte de Utilidad por Producto</h2>
+                <div class="chart-container">
+                    <div id="tablaReporteUtilidad" class="list">
+                        <div class="item">Cargando reporte de utilidad...</div>
                     </div>
                 </div>
             </div>

@@ -162,7 +162,7 @@ window.exportarComprasACSV = function() {
 
 // ==================== REPORTE DE VENTAS ====================
 async function cargarVentasAdmin(busqueda = '') {
-    const lista = document.getElementById('reporteVentas') || document.getElementById('listaVentasAdmin');
+    const lista = document.getElementById('reporteVentas');
     if (!lista) {
         console.warn('Contenedor reporteVentas no encontrado');
         return;
@@ -501,9 +501,9 @@ window.exportarClientesACSV = function() {
 
 // ==================== REPORTE DE UTILIDAD ====================
 async function cargarReporteUtilidad() {
-    const cont = document.getElementById('tablaReporteUtilidad') || document.getElementById('reporteUtilidad');
+    const cont = document.getElementById('tablaReporteUtilidad');
     if (!cont) {
-        console.warn('Contenedor tablaReporteUtilidad o reporteUtilidad no encontrado');
+        console.warn('Contenedor tablaReporteUtilidad no encontrado');
         return;
     }
     
