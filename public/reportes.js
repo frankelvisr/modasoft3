@@ -23,6 +23,10 @@ async function renderReporteCompras() {
         const res = await fetch('/api/compras');
         
         if (!res.ok) {
+            if (res.status === 401) {
+                cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
             throw new Error(`Error HTTP: ${res.status}`);
         }
         
@@ -177,6 +181,10 @@ async function cargarVentasAdmin(busqueda = '') {
         const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`);
         
         if (!res.ok) {
+            if (res.status === 401) {
+                lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
             throw new Error(`Error HTTP: ${res.status}`);
         }
         
@@ -345,6 +353,10 @@ async function cargarClientes(busqueda = '') {
         const res = await fetch('/api/admin/clientes');
         
         if (!res.ok) {
+            if (res.status === 401) {
+                lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
             throw new Error(`Error HTTP: ${res.status}`);
         }
         
@@ -423,11 +435,88 @@ async function cargarClientes(busqueda = '') {
         `;
         lista.appendChild(btnContainer);
 
+        // Agregar botón para ver Top Clientes
+        const topBtn = document.createElement('button');
+        topBtn.textContent = '🏆 Ver Top Clientes';
+        topBtn.className = 'btn btn-tertiary';
+        topBtn.style.cssText = 'margin-left:10px;background:#111827;color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-weight:500;';
+        topBtn.onclick = () => cargarTopClientes(10);
+        lista.appendChild(topBtn);
+
     } catch (error) {
         console.error('Error cargando clientes:', error);
         lista.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">
             ❌ Error al cargar clientes: ${error.message}
         </div>`;
+    }
+}
+
+// ==================== REPORTE TOP CLIENTES ====================
+async function cargarTopClientes(top = 10) {
+    const cont = document.getElementById('reporteClientes');
+    if (!cont) {
+        console.warn('Contenedor reporteClientes no encontrado');
+        return;
+    }
+    cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando Top clientes...</div>';
+    try {
+        const res = await fetch(`/api/reportes/top-clientes?top=${encodeURIComponent(top)}`);
+        if (!res.ok) {
+            if (res.status === 401) {
+                cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data || !data.clientes || !Array.isArray(data.clientes) || data.clientes.length === 0) {
+            cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay clientes para mostrar.</div>';
+            return;
+        }
+
+        let html = `<div id="tabla-top-clientes-export" style="padding:20px;background:white;border-radius:8px;">
+            <h3 style="text-align:center;margin-bottom:10px;color:#333;font-size:1.3em;">🏆 Top Clientes</h3>
+            <p style="text-align:center;color:#666;margin-bottom:20px;font-size:0.9em;">Top ${data.clientes.length} por gasto total</p>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <thead>
+                    <tr style="background:#f97316;color:white;">
+                        <th style="padding:12px;text-align:left;border:1px solid #c2410c;">#</th>
+                        <th style="padding:12px;text-align:left;border:1px solid #c2410c;">Cliente</th>
+                        <th style="padding:12px;text-align:left;border:1px solid #c2410c;">Cédula</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #c2410c;">Transacciones</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #c2410c;">Total Gastado</th>
+                        <th style="padding:12px;text-align:left;border:1px solid #c2410c;">Última compra</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        data.clientes.forEach((c, idx) => {
+            const total = parseFloat(c.total_gastado || 0);
+            const bgColor = idx % 2 === 0 ? '#fff7ed' : '#ffffff';
+            html += `<tr style="background:${bgColor};">
+                <td style="padding:12px;border:1px solid #fee7d6;"><strong>${idx + 1}</strong></td>
+                <td style="padding:12px;border:1px solid #fee7d6;">${c.nombre || 'N/A'}</td>
+                <td style="padding:12px;border:1px solid #fee7d6;">${c.cedula || 'N/A'}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #fee7d6;">${c.ventas_count || 0}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #fee7d6;font-weight:bold;color:#b45309;">$${total.toFixed(2)}</td>
+                <td style="padding:12px;border:1px solid #fee7d6;">${c.ultima_compra ? new Date(c.ultima_compra).toLocaleDateString('es-VE') : '—'}</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        cont.innerHTML = html;
+
+        // Agregar botón para volver a la lista completa
+        const volver = document.createElement('button');
+        volver.textContent = '⬅️ Volver a Clientes';
+        volver.className = 'btn btn-secondary';
+        volver.style.cssText = 'margin-top:8px;background:#6b7280;color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;font-weight:500;';
+        volver.onclick = () => cargarClientes();
+        cont.appendChild(volver);
+
+    } catch (e) {
+        console.error('Error cargando Top clientes:', e);
+        cont.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">❌ Error al cargar Top clientes: ${e.message}</div>`;
     }
 }
 
@@ -513,6 +602,10 @@ async function cargarReporteUtilidad() {
         const res = await fetch('/api/reportes/utilidad-productos');
         
         if (!res.ok) {
+            if (res.status === 401) {
+                cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
             throw new Error(`Error HTTP: ${res.status}`);
         }
         

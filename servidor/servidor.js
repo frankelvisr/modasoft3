@@ -855,6 +855,38 @@ app.get('/api/compras', requiereRol('administrador'), async (req, res) => {
   }
 });
 
+// Ruta de diagnóstico temporal: devuelve compras SIN autenticación solo si ALLOW_DEBUG=1
+app.get('/__debug/compras-noauth', async (req, res) => {
+  try {
+    if (process.env.ALLOW_DEBUG !== '1') {
+      return res.status(403).json({ ok: false, error: 'Debug no habilitado' });
+    }
+    const [compras] = await pool.query(
+      `SELECT c.id_compra, c.fecha_compra, c.total_compra, c.estado_pago, p.nombre AS nombre_proveedor
+       FROM compras c
+       LEFT JOIN proveedores p ON c.id_proveedor = p.id_proveedor
+       ORDER BY c.fecha_compra DESC, c.id_compra DESC LIMIT 100`
+    );
+
+    for (const compra of compras) {
+      const [detalles] = await pool.query(
+        `SELECT dc.id_detalle, dc.id_producto, dc.cantidad, dc.costo_unitario, pr.nombre AS nombre_producto, pr.marca
+         FROM detallecompra dc
+         LEFT JOIN productos pr ON dc.id_producto = pr.id_producto
+         WHERE dc.id_compra = ?
+         ORDER BY dc.id_detalle`,
+        [compra.id_compra]
+      );
+      compra.detalles = detalles;
+    }
+
+    return res.json({ compras });
+  } catch (e) {
+    console.error('Error debug compras:', e.message || e);
+    return res.status(500).json({ ok: false, compras: [] });
+  }
+});
+
 
 // Endpoint para indicadores del dashboard (ventas del mes, serie por día, rotación básica)
 app.get('/api/dashboard/indicadores', requiereRol('administrador'), async (req, res) => {
@@ -2450,6 +2482,41 @@ app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (re
       error: 'Error del servidor: ' + e.message,
       compras_count: 0
     });
+  }
+});
+
+// Endpoint: Top Clientes (por gasto total)
+app.get('/api/reportes/top-clientes', requiereRol('administrador'), async (req, res) => {
+  try {
+    const top = Number(req.query.top) || 10;
+    const [rows] = await pool.query(
+      `SELECT c.id_cliente, c.nombre, c.cedula, c.telefono, c.email,
+              COUNT(v.id_venta) AS ventas_count, COALESCE(SUM(v.total_venta),0) AS total_gastado,
+              MAX(v.fecha_hora) AS ultima_compra
+       FROM clientes c
+       LEFT JOIN ventas v ON c.id_cliente = v.id_cliente
+       GROUP BY c.id_cliente, c.nombre, c.cedula, c.telefono, c.email
+       ORDER BY total_gastado DESC
+       LIMIT ?`,
+      [top]
+    );
+
+    // Normalizar tipos
+    const clientes = rows.map(r => ({
+      id_cliente: r.id_cliente,
+      nombre: r.nombre,
+      cedula: r.cedula,
+      telefono: r.telefono,
+      email: r.email,
+      ventas_count: Number(r.ventas_count) || 0,
+      total_gastado: Number(r.total_gastado) || 0,
+      ultima_compra: r.ultima_compra
+    }));
+
+    return res.json({ clientes });
+  } catch (e) {
+    console.error('Error top clientes:', e.message || e);
+    return res.status(500).json({ clientes: [] });
   }
 });
 
