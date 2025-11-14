@@ -28,8 +28,8 @@ async function renderReporteCompras() {
         
         const data = await res.json();
         
-        if (!data.ok || !data.compras || data.compras.length === 0) {
-            cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay datos de compras.</div>';
+        if (!data.compras || !Array.isArray(data.compras) || data.compras.length === 0) {
+            cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay datos de compras registrados.</div>';
             return;
         }
 
@@ -182,8 +182,8 @@ async function cargarVentasAdmin(busqueda = '') {
         
         const data = await res.json();
 
-        if (!data || !data.ok || !data.ventas || data.ventas.length === 0) {
-            lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay ventas para el período seleccionado.</div>';
+        if (!data || !data.ventas || !Array.isArray(data.ventas) || data.ventas.length === 0) {
+            lista.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay ventas registradas para el período seleccionado.</div>';
             return;
         }
 
@@ -518,7 +518,7 @@ async function cargarReporteUtilidad() {
         
         const data = await res.json();
         
-        if (!data || !data.ok || !data.utilidad || data.utilidad.length === 0) {
+        if (!data || !data.utilidad || !Array.isArray(data.utilidad) || data.utilidad.length === 0) {
             cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay datos de utilidad disponibles.</div>';
             return;
         }
@@ -724,7 +724,7 @@ async function renderReporteInventario() {
     try {
         const res = await fetch('/api/reportes/inventario-actual');
         const data = await res.json();
-        if (!data.ok || !data.rows || data.rows.length === 0) {
+        if (!data || !data.rows || !Array.isArray(data.rows) || data.rows.length === 0) {
             cont.innerHTML = '<div class="item">No hay datos de inventario.</div>';
             return;
         }
@@ -765,7 +765,7 @@ async function fetchVentasTemporada(periodo) {
         // Simular datos por período
         const res = await fetch('/api/admin/ventas');
         const data = await res.json();
-        if (!data.ok || !data.ventas) {
+        if (!data || !data.ventas || !Array.isArray(data.ventas) || data.ventas.length === 0) {
             if (cont.id === 'temporadaChart') return;
             cont.innerHTML = '<div class="item">No hay datos.</div>';
             return;
