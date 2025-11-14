@@ -800,82 +800,82 @@ async function cargarVentasAdmin(busqueda = '') {
     // lo que hacía que el contenido se pintara en el reporte y no en el panel de gestión.
     const lista = document.getElementById('listaVentasAdmin') || document.getElementById('reporteVentas');
     if (!lista) return;
-    
+    lista.innerHTML = '<div class="item">⏳ Cargando ventas...</div>';
+
     try {
-        // Por ahora tomamos mes/año actuales; se pueden exponer filtros en UI
+        // Obtener mes/año actuales (se pueden adaptar a filtros si existieran en la UI)
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
-        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
-        const data = await res.json();
 
-        if (!data.ok) {
-            lista.innerHTML = `<div class="item">Error cargando ventas: ${data.message || 'error'}</div>`;
+        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
+        if (!res.ok) {
+            if (res.status === 401) {
+                lista.innerHTML = '<div class="item" style="color:#dc2626;">🔒 No autenticado. Inicia sesión para ver ventas.</div>';
+                return;
+            }
+            lista.innerHTML = `<div class="item">Error HTTP: ${res.status}</div>`;
             return;
         }
 
-        let ventas = data.ventas || [];
-        if (busqueda) {
-            const b = busqueda.toLowerCase();
-            ventas = ventas.filter(v => (v.cliente || '').toLowerCase().includes(b) || (v.usuario || '').toLowerCase().includes(b) || String(v.id_venta).includes(b));
-        }
+        const data = await res.json();
+        const ventas = Array.isArray(data.ventas) ? data.ventas : [];
 
         if (ventas.length === 0) {
             lista.innerHTML = '<div class="item">No hay ventas para el mes seleccionado.</div>';
             return;
         }
 
-        // Usar el nuevo endpoint que incluye totales por tipo de pago
-        const resDetalle = await fetch(`/api/reportes/ventas-detalle?year=${year}&month=${month}`, { credentials: 'include' });
-        const dataDetalle = await resDetalle.json();
-        
-        if (dataDetalle.ok && dataDetalle.ventas) {
-            ventas = dataDetalle.ventas;
-        }
-        
-        let html = ventas.map(v => `
-            <div class="item" data-id="${v.id_venta}">
+        // Renderizar ventas
+        let html = '';
+        ventas.forEach(v => {
+            const detalleText = (v.detalle || []).map(d => `${d.marca || ''} ${d.producto || ''} ${d.talla ? '('+d.talla+')' : ''} x${d.cantidad} @ $${parseFloat(d.precio_unitario||0).toFixed(2)}`).join(' · ');
+            html += `<div class="item" data-id="${v.id_venta}">
                 <div>
                     <strong>Venta #${v.id_venta}</strong> — ${v.cliente || 'Cliente Anónimo'}<br>
                     Fecha: ${v.fecha_hora} | Total: $${parseFloat(v.total_venta || 0).toFixed(2)} | Pago: ${v.tipo_pago} | Usuario: ${v.usuario || 'N/A'}
-                    <div style="margin-top:8px;font-size:0.9em;color:var(--text-muted);">${(v.detalle || []).map(d => `${d.marca || ''} ${d.producto || ''} (${d.talla || ''}) x${d.cantidad} @ $${parseFloat(d.precio_unitario||0).toFixed(2)}`).join(' · ')}</div>
+                    <div style="margin-top:8px;font-size:0.9em;color:var(--text-muted);">${detalleText}</div>
                 </div>
                 <div class="actions">
                     <button class="btn btn-small" onclick="verDetalleVenta(${v.id_venta})">Ver</button>
                     <button class="btn btn-small danger" onclick="eliminarVentaAdmin(${v.id_venta})">Eliminar</button>
                 </div>
-            </div>
-        `).join('');
-        
-        // Agregar totales por tipo de pago al final
-        if (dataDetalle.ok && dataDetalle.totales) {
-            const totales = dataDetalle.totales;
-            html += `
-                <div class="item" style="background:var(--surface-alt);padding:16px;margin-top:16px;border-radius:8px;">
-                    <strong style="font-size:1.1em;">📊 Resumen de Pagos</strong><br>
-                    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
-                        <div><strong>Total General:</strong> $${parseFloat(totales.total || 0).toFixed(2)}</div>
-                        <div><strong>Efectivo:</strong> $${parseFloat(totales.efectivo || 0).toFixed(2)}</div>
-                        <div><strong>Pago Móvil:</strong> $${parseFloat(totales.pago_movil || 0).toFixed(2)}</div>
-                        <div><strong>Transferencia:</strong> $${parseFloat(totales.transferencia || 0).toFixed(2)}</div>
-                        <div><strong>Tarjeta:</strong> $${parseFloat(totales.tarjeta || 0).toFixed(2)}</div>
-                    </div>
-                </div>
-            `;
+            </div>`;
+        });
+
+        // Intentar obtener totales por tipo de pago (si existe endpoint)
+        try {
+            const resDetalle = await fetch(`/api/reportes/ventas-detalle?year=${year}&month=${month}`, { credentials: 'include' });
+            if (resDetalle.ok) {
+                const dataDetalle = await resDetalle.json();
+                if (dataDetalle && dataDetalle.ventas && Array.isArray(dataDetalle.ventas) && dataDetalle.ventas.length > 0) {
+                    // reemplazar listado si el endpoint provee una versión enriquecida
+                    // (mantener el html previo si no aplica)
+                }
+                if (dataDetalle && dataDetalle.totales) {
+                    const totales = dataDetalle.totales;
+                    html += `
+                        <div class="item" style="background:var(--surface-alt);padding:16px;margin-top:16px;border-radius:8px;">
+                            <strong style="font-size:1.1em;">📊 Resumen de Pagos</strong><br>
+                            <div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                                <div><strong>Total General:</strong> $${parseFloat(totales.total || 0).toFixed(2)}</div>
+                                <div><strong>Efectivo:</strong> $${parseFloat(totales.efectivo || 0).toFixed(2)}</div>
+                                <div><strong>Pago Móvil:</strong> $${parseFloat(totales.pago_movil || 0).toFixed(2)}</div>
+                                <div><strong>Transferencia:</strong> $${parseFloat(totales.transferencia || 0).toFixed(2)}</div>
+                                <div><strong>Tarjeta:</strong> $${parseFloat(totales.tarjeta || 0).toFixed(2)}</div>
+                            </div>
+                        </div>`;
+                }
+            }
+        } catch (e) {
+            console.warn('No se pudo obtener totales detalle:', e);
         }
 
         lista.innerHTML = html;
 
-        // Mostrar totales resumidos (si existe contenedor en dashboard)
-        if (document.getElementById('ventasMes')) {
-            const total = dataDetalle.ok && dataDetalle.totales ? dataDetalle.totales.total : (data.totales && data.totales.total_mes ? data.totales.total_mes : 0);
-            document.getElementById('ventasMes').textContent = '$' + parseFloat(total).toFixed(2);
-        }
-
     } catch (error) {
         console.error('Error cargando ventas admin:', error);
-        const lista = document.getElementById('listaVentasAdmin');
-        if (lista) lista.innerHTML = '<div class="item">Error de conexión al cargar ventas</div>';
+        lista.innerHTML = '<div class="item">Error de conexión al cargar ventas</div>';
     }
 }
 
@@ -890,7 +890,7 @@ window.verDetalleVenta = function(id) {
                 title.textContent = 'Cargando venta #' + id + '...';
                 body.innerHTML = '<div>Cargando...</div>';
                 modal.style.display = 'flex';
-                const res = await fetch('/api/admin/ventas/' + encodeURIComponent(id));
+                const res = await fetch('/api/admin/ventas/' + encodeURIComponent(id), { credentials: 'include' });
                 if (!res.ok) {
                     const err = await res.json().catch(()=>({}));
                     body.innerHTML = '<div>Error: ' + (err.message || 'No se pudo cargar la venta') + '</div>';
