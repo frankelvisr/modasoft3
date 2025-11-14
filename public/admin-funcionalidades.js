@@ -1238,177 +1238,28 @@ async function renderReporteInventario() {
     }
 }
 
+// Ahora manejada en reportes.js - mantener para compatibilidad
 async function renderReporteCompras() {
-    const cont = document.getElementById('reporteCompras');
-    if (!cont) return;
-    cont.innerHTML = '<div class="item">Cargando compras...</div>';
-    try {
-        const res = await fetch('/api/compras');
-        const data = await res.json();
-        if (!data.ok || !data.compras || data.compras.length === 0) {
-            cont.innerHTML = '<div class="item">No hay datos de compras.</div>';
-            return;
-        }
-        // Construir tabla
-        let html = `<table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:var(--surface-alt);">
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Compra #</th>
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Fecha</th>
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Proveedor</th>
-                <th style="padding:8px;text-align:right;border:1px solid #eee;">Total</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        data.compras.forEach(c => {
-            html += `<tr>
-                <td style="padding:8px;border:1px solid #f4f4f4;">#${c.id_compra}</td>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${new Date(c.fecha_compra).toLocaleDateString('es-VE')}</td>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${c.proveedor || 'N/A'}</td>
-                <td style="padding:8px;text-align:right;border:1px solid #f4f4f4;font-weight:bold;">$${Number(c.total_compra || 0).toFixed(2)}</td>
-            </tr>`;
-        });
-        html += `</tbody></table>`;
-        cont.innerHTML = html;
-    } catch (e) {
-        cont.innerHTML = '<div class="item">Error al cargar compras.</div>';
+    // Llamar a la función en reportes.js
+    if (typeof window.renderReporteCompras !== 'function') {
+        console.error('renderReporteCompras no está disponible en reportes.js');
+        return;
     }
 }
 
-// ------------------ Análisis de Ventas por Temporada (frontend helper) ------------------
+// Manejada en reportes.js
 async function renderReporteTemporada() {
-    const cont = document.getElementById('reporteTemporada');
-    if (!cont) return;
-    cont.innerHTML = '<div class="item">Cargando análisis de ventas...</div>';
-    try {
-        const res = await fetch('/api/admin/ventas');
-        const data = await res.json();
-        if (!data.ok || !data.ventas || data.ventas.length === 0) {
-            cont.innerHTML = '<div class="item">No hay datos de ventas.</div>';
-            return;
-        }
-        
-        // Agrupar por mes
-        const ventasPorMes = {};
-        let totalGeneral = 0;
-        
-        data.ventas.forEach(v => {
-            const fecha = new Date(v.fecha_hora);
-            const mes = fecha.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
-            const monto = Number(v.total_venta || 0);
-            
-            if (!ventasPorMes[mes]) {
-                ventasPorMes[mes] = { count: 0, total: 0 };
-            }
-            ventasPorMes[mes].count++;
-            ventasPorMes[mes].total += monto;
-            totalGeneral += monto;
-        });
-        
-        // Construir tabla
-        let html = `<table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:var(--surface-alt);">
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Período</th>
-                <th style="padding:8px;text-align:right;border:1px solid #eee;">Transacciones</th>
-                <th style="padding:8px;text-align:right;border:1px solid #eee;">Total Vendido</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        
-        Object.entries(ventasPorMes).forEach(([mes, datos]) => {
-            html += `<tr>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${mes}</td>
-                <td style="padding:8px;text-align:right;border:1px solid #f4f4f4;">${datos.count}</td>
-                <td style="padding:8px;text-align:right;border:1px solid #f4f4f4;font-weight:bold;">$${datos.total.toFixed(2)}</td>
-            </tr>`;
-        });
-        
-        html += `</tbody></table>`;
-        html += `<div style="padding:15px;background:#f0f0f0;margin-top:15px;border-radius:4px;font-weight:bold;">Total: $${totalGeneral.toFixed(2)}</div>`;
-        
-        cont.innerHTML = html;
-    } catch (e) {
-        cont.innerHTML = '<div class="item">Error al cargar análisis de ventas.</div>';
-    }
+    // Llamar función en reportes.js
 }
 
-// ==================== ROTACIÓN DE INVENTARIO ====================
+// Manejada en reportes.js
 async function renderReporteRotacion() {
-    const cont = document.getElementById('reporteRotacion');
-    if (!cont) return;
-    cont.innerHTML = '<div class="item">Cargando rotación de inventario...</div>';
-    try {
-        const res = await fetch(`/api/reportes/rotacion-inventario?top=100`);
-        const data = await res.json();
-        if (data && data.rows && data.rows.length > 0) {
-            let html = `<table style="width:100%;border-collapse:collapse;">
-                <thead>
-                    <tr style="background:var(--surface-alt);">
-                        <th style="padding:var(--spacing-md);text-align:left;">Producto</th>
-                        <th style="padding:var(--spacing-md);text-align:left;">Categoría</th>
-                        <th style="padding:var(--spacing-md);text-align:right;">Stock Actual</th>
-                        <th style="padding:var(--spacing-md);text-align:right;">Vendidas (últ. mes)</th>
-                        <th style="padding:var(--spacing-md);text-align:right;">Índice Rotación</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            data.rows.forEach(r => {
-                html += `<tr>
-                    <td style="padding:var(--spacing-md);">${r.marca || ''} ${r.nombre || ''}</td>
-                    <td style="padding:var(--spacing-md);">${r.categoria || 'N/A'}</td>
-                    <td style="padding:var(--spacing-md);text-align:right;">${r.stock_actual || 0}</td>
-                    <td style="padding:var(--spacing-md);text-align:right;">${r.unidades_vendidas_ultimo_mes || 0}</td>
-                    <td style="padding:var(--spacing-md);text-align:right;font-weight:600;">${parseFloat(r.indice_rotacion||0).toFixed(2)}</td>
-                </tr>`;
-            });
-            html += `</tbody></table>`;
-            cont.innerHTML = html;
-        } else {
-            cont.innerHTML = '<div class="item">No hay datos de rotación disponibles.</div>';
-        }
-    } catch (e) {
-        console.error('Error al obtener rotación de inventario:', e);
-        cont.innerHTML = '<div class="item">Error al cargar rotación de inventario.</div>';
-    }
+    // Llamar función en reportes.js
 }
 
-// ==================== REPORTE DE CLIENTES ====================
+// Manejada en reportes.js
 async function renderReporteClientes() {
-    const cont = document.getElementById('reporteClientes');
-    if (!cont) return;
-    cont.innerHTML = '<div class="item">Cargando clientes...</div>';
-    try {
-        const res = await fetch('/api/clientes');
-        const data = await res.json();
-        if (!data.ok || !data.clientes || data.clientes.length === 0) {
-            cont.innerHTML = '<div class="item">No hay datos de clientes.</div>';
-            return;
-        }
-        // Construir tabla
-        let html = `<table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:var(--surface-alt);">
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Nombre</th>
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Cédula</th>
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Email</th>
-                <th style="padding:8px;text-align:left;border:1px solid #eee;">Teléfono</th>
-              </tr>
-            </thead>
-            <tbody>`;
-        data.clientes.forEach(c => {
-            html += `<tr>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${c.nombre || 'N/A'}</td>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${c.cedula || 'N/A'}</td>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${c.email || 'N/A'}</td>
-                <td style="padding:8px;border:1px solid #f4f4f4;">${c.telefono || 'N/A'}</td>
-            </tr>`;
-        });
-        html += `</tbody></table>`;
-        cont.innerHTML = html;
-    } catch (e) {
-        cont.innerHTML = '<div class="item">Error al cargar clientes.</div>';
-    }
+    // Llamar función en reportes.js
 }
 
 function exportarReporteUtilidad() {
@@ -1474,25 +1325,25 @@ window.switchReporteTab = function(tabName) {
     setTimeout(() => {
         switch(tabName) {
             case 'utilidad':
-                cargarReporteUtilidad();
+                if (typeof cargarReporteUtilidad === 'function') cargarReporteUtilidad();
                 break;
             case 'inventario':
-                renderReporteInventario();
+                if (typeof renderReporteInventario === 'function') renderReporteInventario();
                 break;
             case 'compras':
-                renderReporteCompras();
+                if (typeof renderReporteCompras === 'function') renderReporteCompras();
                 break;
             case 'ventas':
-                cargarVentasAdmin();
+                if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
                 break;
             case 'clientes':
-                cargarClientes();
+                if (typeof cargarClientes === 'function') cargarClientes();
                 break;
             case 'temporada':
-                fetchVentasTemporada('actual');
+                if (typeof fetchVentasTemporada === 'function') fetchVentasTemporada('actual');
                 break;
             case 'rotacion':
-                cargarRotacionInventario();
+                if (typeof cargarRotacionInventario === 'function') cargarRotacionInventario();
                 break;
         }
     }, 100);
