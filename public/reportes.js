@@ -769,6 +769,165 @@ window.exportarUtilidadACSV = function() {
 };
 
 
+// ==================== REPORTE DE GANANCIAS ====================
+async function cargarReporteGanancias() {
+    const cont = document.getElementById('reporteGanancias');
+    if (!cont) {
+        console.warn('Contenedor reporteGanancias no encontrado');
+        return;
+    }
+
+    cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;">⏳ Cargando reporte de ganancias...</div>';
+
+    try {
+        const res = await fetch('/api/reportes/ganancias', { credentials: 'include' });
+
+        if (!res.ok) {
+            if (res.status === 401) {
+                cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#dc2626;">🔒 No autenticado. Por favor inicie sesión en el sistema.</div>';
+                return;
+            }
+            throw new Error(`Error HTTP: ${res.status}`);
+        }
+
+        const data = await res.json();
+        const rows = data.ganancias || data.rows || [];
+
+        if (!rows || !Array.isArray(rows) || rows.length === 0) {
+            cont.innerHTML = '<div class="item" style="padding:20px;text-align:center;color:#999;">📭 No hay datos de ganancias para el período seleccionado.</div>';
+            return;
+        }
+
+        let totalIngresos = 0;
+        let totalCostos = 0;
+        let totalGanancias = 0;
+
+        let html = `<div id="tabla-ganancias-export" style="padding:20px;background:white;border-radius:8px;">
+            <h3 style="text-align:center;margin-bottom:10px;color:#333;font-size:1.3em;">📈 Reporte de Ganancias</h3>
+            <p style="text-align:center;color:#666;margin-bottom:20px;font-size:0.9em;">Generado: ${new Date().toLocaleDateString('es-VE', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</p>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <thead>
+                    <tr style="background:#0ea5e9;color:white;">
+                        <th style="padding:12px;text-align:left;border:1px solid #0284c7;">Período/Fecha</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #0284c7;">Ingresos</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #0284c7;">Costos</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #0284c7;">Ganancia</th>
+                        <th style="padding:12px;text-align:right;border:1px solid #0284c7;">Margen %</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        rows.forEach((r, idx) => {
+            const ingresos = parseFloat(r.ingresos || r.ingreso_total || 0);
+            const costos = parseFloat(r.costos || r.costo_total || 0);
+            const ganancia = parseFloat(r.ganancia || r.ganancias || (ingresos - costos) || 0);
+            const margen = ingresos !== 0 ? (ganancia / ingresos) * 100 : 0;
+
+            totalIngresos += ingresos;
+            totalCostos += costos;
+            totalGanancias += ganancia;
+
+            const bg = idx % 2 === 0 ? '#f0f9ff' : '#ffffff';
+            const label = r.periodo || r.fecha || r.mes || r.nombre || '';
+
+            html += `<tr style="background:${bg};">
+                <td style="padding:12px;border:1px solid #e6f2fb;">${label}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #e6f2fb;">$${ingresos.toFixed(2)}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #e6f2fb;">$${costos.toFixed(2)}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #e6f2fb;font-weight:bold;color:#065f46;">$${ganancia.toFixed(2)}</td>
+                <td style="padding:12px;text-align:right;border:1px solid #e6f2fb;">${margen.toFixed(1)}%</td>
+            </tr>`;
+        });
+
+        html += `</tbody></table>
+            <div style="border-top:2px solid #e6f2fb;padding-top:15px;text-align:right;">
+                <p style="margin:0;color:#666;font-size:0.9em;\"><strong>Total Ingresos:</strong> $${totalIngresos.toFixed(2)}</p>
+                <p style="margin:0;color:#666;font-size:0.9em;\"><strong>Total Costos:</strong> $${totalCostos.toFixed(2)}</p>
+                <p style="margin:5px 0 0 0;color:#065f46;font-weight:bold;font-size:1.05em;\"><strong>Total Ganancias:</strong> $${totalGanancias.toFixed(2)}</p>
+                <p style="margin:5px 0 0 0;color:#999;font-size:0.8em;">Registros: ${rows.length}</p>
+            </div>
+        </div>`;
+
+        cont.innerHTML = html;
+
+        // Botones de exportación
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'margin-top:20px;display:flex;gap:10px;';
+        btnContainer.innerHTML = `
+            <button onclick="exportarGananciasAPDF()" class="btn btn-primary" style="background:#0ea5e9;color:white;padding:12px 24px;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:1em;">
+                📥 Exportar a PDF
+            </button>
+            <button onclick="exportarGananciasACSV()" class="btn btn-secondary" style="background:#6b7280;color:white;padding:12px 24px;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:1em;">
+                📊 Exportar a CSV
+            </button>
+        `;
+        cont.appendChild(btnContainer);
+
+    } catch (error) {
+        console.error('Error cargando reporte de ganancias:', error);
+        cont.innerHTML = `<div class="item" style="padding:20px;text-align:center;color:#dc2626;">❌ Error al cargar reporte: ${error.message}</div>`;
+    }
+}
+
+window.exportarGananciasAPDF = function() {
+    const element = document.getElementById('tabla-ganancias-export');
+    if (!element) {
+        alert('❌ No hay datos para exportar');
+        return;
+    }
+    try {
+        const opt = {
+            margin: 10,
+            filename: `reporte_ganancias_${new Date().toISOString().slice(0,10)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { orientation: 'landscape', unit: 'mm', format: 'a4' }
+        };
+        html2pdf().set(opt).from(element).save();
+    } catch (e) {
+        console.error('Error generando PDF de ganancias:', e);
+        alert('❌ Error al generar el PDF: ' + e.message);
+    }
+};
+
+window.exportarGananciasACSV = function() {
+    const element = document.getElementById('tabla-ganancias-export');
+    if (!element) {
+        alert('❌ No hay datos para exportar');
+        return;
+    }
+    try {
+        const tabla = element.querySelector('table');
+        if (!tabla) {
+            alert('❌ No se encontró la tabla de ganancias');
+            return;
+        }
+        let csv = 'Periodo,Ingresos,Costos,Ganancia,Margen %\n';
+        const filas = tabla.querySelectorAll('tbody tr');
+        filas.forEach(fila => {
+            const celdas = fila.querySelectorAll('td');
+            const periodo = (celdas[0]?.textContent || '').trim();
+            const ingresos = (celdas[1]?.textContent || '').trim();
+            const costos = (celdas[2]?.textContent || '').trim();
+            const ganancia = (celdas[3]?.textContent || '').trim();
+            const margen = (celdas[4]?.textContent || '').trim();
+            csv += `"${periodo}","${ingresos}","${costos}","${ganancia}","${margen}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `reporte_ganancias_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (e) {
+        console.error('Error generando CSV de ganancias:', e);
+        alert('❌ Error al generar el CSV: ' + e.message);
+    }
+};
+
 function switchReporteTab(tab) {
     // Ocultar todos los reportes
     const reporteSections = document.querySelectorAll('.reporte-section');

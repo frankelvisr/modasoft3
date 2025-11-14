@@ -41,6 +41,9 @@
             'reporte-clientes': ['reporte-clientesPanel', 'reporte-clientes'],
             'reporte-utilidad': ['reporte-utilidadPanel', 'reporte-utilidad']
         };
+
+        // Añadir mapeo para nuevo reporte de ganancias
+        panelMap['reporte-ganancias'] = ['reporte-gananciasPanel', 'reporte-ganancias'];
         
         if (panelMap[tab]) {
             const [panelId, linkTab] = panelMap[tab];
@@ -118,6 +121,11 @@
             if (tab === 'reporte-utilidad') {
                 setTimeout(() => {
                     if (typeof cargarReporteUtilidad === 'function') cargarReporteUtilidad();
+                }, 100);
+            }
+            if (tab === 'reporte-ganancias') {
+                setTimeout(() => {
+                    if (typeof cargarReporteGanancias === 'function') cargarReporteGanancias();
                 }, 100);
             }
         }
@@ -790,6 +798,12 @@
                             <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-utilidad'); return false;">
                                 <span class="sidebar-menu-icon">💵</span>
                                 <span>Utilidad</span>
+                            </a>
+                        </li>
+                        <li class="sidebar-menu-item">
+                            <a href="#" class="sidebar-menu-link" onclick="switchTab('reporte-ganancias'); return false;">
+                                <span class="sidebar-menu-icon">📈</span>
+                                <span>Ganancias</span>
                             </a>
                         </li>
                     </ul>
@@ -1588,6 +1602,15 @@
                     </div>
                 </div>
             </div>
+            <!-- PANEL: REPORTE DE GANANCIAS -->
+            <div id="reporte-gananciasPanel" class="panel tabContent" style="display:none;">
+                <h2 style="color: #0ea5e9; margin-bottom: 24px;">📈 Reporte de Ganancias</h2>
+                <div class="chart-container">
+                    <div id="reporteGanancias" class="list">
+                        <div class="item">Cargando reporte de ganancias...</div>
+                    </div>
+                </div>
+            </div>
                 </div>
             </div>
         </div>
@@ -1595,7 +1618,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="cliente.js"></script>
-    <script src="admin-funcionalidades.js"></script>
     <script src="reportes.js"></script>
+    <script src="admin-funcionalidades.js"></script>
 </body>
 </html>
