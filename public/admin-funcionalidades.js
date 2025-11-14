@@ -25,6 +25,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         }
+        
+        // Cargar lista de compras del mes en el panel de Compras (administrador)
+        if (document.getElementById('listaCompras')) {
+            cargarCompras();
+            const inputBuscarCompras = document.getElementById('buscarCompraAdmin');
+            if (inputBuscarCompras) {
+                let t;
+                inputBuscarCompras.addEventListener('input', function(e) {
+                    clearTimeout(t);
+                    t = setTimeout(() => {
+                        cargarCompras(e.target.value.trim());
+                    }, 350);
+                });
+            }
+        }
+        
     // Cargar productos y proveedores para compras
     if (document.getElementById('compraProveedor')) {
         cargarProveedoresCompra();
@@ -314,38 +330,55 @@ async function registrarCompra(e) {
     }
 }
 
-async function cargarCompras() {
+async function cargarCompras(busqueda = '') {
     try {
         const res = await fetch('/api/compras');
         const data = await res.json();
         const lista = document.getElementById('listaCompras');
-        if (lista && data.compras) {
-            if (data.compras.length === 0) {
-                lista.innerHTML = '<div class="item">No hay compras registradas</div>';
-                return;
-            }
-            lista.innerHTML = data.compras.map(compra => {
-                const detallesHtml = compra.detalles && compra.detalles.length > 0 
-                    ? compra.detalles.map(d => {
-                        const nombre = (d && d.nombre_producto) ? d.nombre_producto : ('Producto #' + d.id_producto);
-                        const label = (String(nombre).toLowerCase() === 'producto eliminado') ? 'Producto eliminado' : `${d.marca || ''} ${nombre}`;
-                        const costo = parseFloat(d.costo_unitario || 0);
-                        return `<div style="margin-left:20px;font-size:0.9em;color:#666;">- ${label} (${d.cantidad} unidades x $${costo.toFixed(2)}) = $${(Number(d.cantidad||0) * costo).toFixed(2)}</div>`;
-                      }).join('')
-                    : '<div style="margin-left:20px;font-size:0.9em;color:#999;">Sin detalles</div>';
-                
-                return `
-                <div class="item">
-                    <div>
-                        <strong>Compra #${compra.id_compra}</strong><br>
-                        Proveedor: ${compra.nombre_proveedor || 'N/A'}<br>
-                        Fecha: ${compra.fecha_compra || 'N/A'} | Total: $${parseFloat(compra.total_compra || 0).toFixed(2)} | Estado: ${compra.estado_pago || 'N/A'}
-                        ${detallesHtml}
-                    </div>
-                </div>
-            `;
-            }).join('');
+        if (!lista) return;
+        
+        if (!data.compras || data.compras.length === 0) {
+            lista.innerHTML = '<div class="item">No hay compras registradas</div>';
+            return;
         }
+        
+        // Filtrar compras si hay búsqueda
+        let compras = data.compras;
+        if (busqueda) {
+            const b = busqueda.toLowerCase();
+            compras = compras.filter(c => 
+                (c.nombre_proveedor || '').toLowerCase().includes(b) ||
+                String(c.id_compra).includes(b) ||
+                (c.estado_pago || '').toLowerCase().includes(b)
+            );
+        }
+        
+        if (compras.length === 0) {
+            lista.innerHTML = '<div class="item">No se encontraron compras</div>';
+            return;
+        }
+        
+        lista.innerHTML = compras.map(compra => {
+            const detallesHtml = compra.detalles && compra.detalles.length > 0 
+                ? compra.detalles.map(d => {
+                    const nombre = (d && d.nombre_producto) ? d.nombre_producto : ('Producto #' + d.id_producto);
+                    const label = (String(nombre).toLowerCase() === 'producto eliminado') ? 'Producto eliminado' : `${d.marca || ''} ${nombre}`;
+                    const costo = parseFloat(d.costo_unitario || 0);
+                    return `<div style="margin-left:20px;font-size:0.9em;color:#666;">- ${label} (${d.cantidad} unidades x $${costo.toFixed(2)}) = $${(Number(d.cantidad||0) * costo).toFixed(2)}</div>`;
+                  }).join('')
+                : '<div style="margin-left:20px;font-size:0.9em;color:#999;">Sin detalles</div>';
+            
+            return `
+            <div class="item">
+                <div>
+                    <strong>Compra #${compra.id_compra}</strong><br>
+                    Proveedor: ${compra.nombre_proveedor || 'N/A'}<br>
+                    Fecha: ${compra.fecha_compra || 'N/A'} | Total: $${parseFloat(compra.total_compra || 0).toFixed(2)} | Estado: ${compra.estado_pago || 'N/A'}
+                    ${detallesHtml}
+                </div>
+            </div>
+        `;
+        }).join('');
     } catch (error) {
         console.error('Error cargando compras:', error);
         const lista = document.getElementById('listaCompras');
@@ -1206,27 +1239,51 @@ async function renderReporteInventario() {
 }
 
 async function renderReporteCompras() {
+    console.log('🔄 renderReporteCompras iniciado');
     const cont = document.getElementById('reporteCompras');
-    if (!cont) return;
+    if (!cont) {
+        console.error('❌ No se encontró elemento reporteCompras');
+        return;
+    }
+    
+    console.log('📝 Mostrando mensaje de carga');
     cont.innerHTML = '<div class="item">Cargando compras...</div>';
+    
     const btn = document.getElementById('btnReporteCompras');
     if (btn) {
         try { btn.dataset._origText = btn.textContent; } catch(e){}
         btn.disabled = true;
         btn.textContent = 'Generando...';
     }
+    
     try {
         const fi = document.getElementById('comprasFechaInicio')?.value || '';
         const ff = document.getElementById('comprasFechaFin')?.value || '';
+        console.log('📅 Fechas ingresadas:', { inicio: fi, fin: ff });
+        
+        // Validar que al menos una fecha esté presente
+        if (!fi && !ff) {
+            console.warn('⚠️ No se especificaron fechas - se traerán todas las compras');
+        }
+        
         const qs = new URLSearchParams();
-        if (fi) qs.set('start', fi);
-        if (ff) qs.set('end', ff);
+        if (fi) {
+            qs.set('start', fi);
+            console.log('  ✓ Fecha inicio establecida:', fi);
+        }
+        if (ff) {
+            qs.set('end', ff);
+            console.log('  ✓ Fecha fin establecida:', ff);
+        }
+        
         const url = '/api/reportes/compras-periodo' + (qs.toString() ? ('?' + qs.toString()) : '');
-        console.info('renderReporteCompras: requesting', url);
+        console.log('🌐 Solicitando URL:', url);
+        
         const res = await fetch(url, { credentials: 'include' });
+        console.log('✓ Respuesta recibida, status:', res.status, res.statusText);
+        
         if (!res.ok) {
-            // Intentar parsear JSON de error para mostrar mensaje más claro
-            let msg = `Error al solicitar datos (status ${res.status}).`;
+            let msg = `Error al solicitar datos (status ${res.status} ${res.statusText}).`;
             try {
                 const j = await res.clone().json();
                 if (j && (j.error || j.message)) {
@@ -1238,31 +1295,47 @@ async function renderReporteCompras() {
                     if (txt) msg += ' ' + txt;
                 } catch (_) {}
             }
-            console.error('Error fetching compras-periodo:', res.status, msg);
-            cont.innerHTML = `<div class="item">${msg} Revisa la consola.</div>`;
+            console.error('❌ Error fetching compras-periodo:', res.status, msg);
+            cont.innerHTML = `<div class="item">❌ ${msg}</div>`;
             return;
         }
+        
         const data = await res.json().catch(err => {
-            console.error('JSON parse error for compras-periodo:', err);
+            console.error('❌ JSON parse error for compras-periodo:', err);
             return null;
         });
-        if (!data || !data.ok || !data.grupos || data.grupos.length === 0) {
-            // Si el servidor devolvió ok=false mostrar mensaje de detalle
-            if (data && data.error) {
-                cont.innerHTML = `<div class="item">Error: ${data.error}</div>`;
-            } else {
-                cont.innerHTML = '<div class="item">No hay compras en el periodo seleccionado.</div>';
-            }
+        
+        console.log('📊 Datos recibidos:', data);
+        
+        if (!data) {
+            cont.innerHTML = '<div class="item">❌ Error: No se pudo parsear la respuesta del servidor</div>';
             return;
         }
+        
+        if (!data.ok) {
+            cont.innerHTML = `<div class="item">❌ Error: ${data.error || 'Error desconocido'}</div>`;
+            console.error('Error en respuesta:', data.error);
+            return;
+        }
+        
+        if (!data.grupos || data.grupos.length === 0) {
+            cont.innerHTML = '<div class="item">ℹ️ No hay compras en el período seleccionado (4 Nov - 13 Nov). Verifica que las compras existan en esas fechas.</div>';
+            console.log('Sin datos de compras en el período');
+            return;
+        }
+        
+        console.log('✓ Procesando', data.grupos.length, 'grupos de proveedores');
+        
         // Construir vista agrupada por proveedor > compra, con totales por compra y total general
         let html = '';
-        data.grupos.forEach(g => {
+        data.grupos.forEach((g, idx) => {
+            console.log(`  Proveedor ${idx + 1}:`, g.proveedor, '- Compras:', g.compras?.length || 0);
             html += `<div style="margin-bottom:18px;">
-                <h4 style="margin:6px 0;">Proveedor: ${g.proveedor || 'Sin proveedor'}</h4>`;
+                <h4 style="margin:6px 0;">📦 Proveedor: ${g.proveedor || 'Sin proveedor'}</h4>`;
 
             // Iterar sobre compras bajo este proveedor
             if (g.compras && g.compras.length > 0) {
+                console.log('  ✓ Total compras de este proveedor:', g.compras.length);
                 g.compras.forEach(compra => {
                     // Calcular subtotal de esta compra
                     const subtotal = (compra.lineas && compra.lineas.length > 0)
@@ -1306,19 +1379,23 @@ async function renderReporteCompras() {
                     html += `</div>`;
                 });
             } else {
-                html += `<div style="padding:8px;color:#999;font-style:italic;">Sin compras</div>`;
+                html += `<div style="padding:8px;color:#999;font-style:italic;">Sin compras para este proveedor</div>`;
             }
 
             html += `</div>`;
         });
 
-        // Total general (si vino desde servidor)
+        // Total general
         const totalGeneral = Number(data.total_general || 0);
-        html += `<div style="margin-top:12px;font-weight:700;font-size:1.05em;">Total general: $${totalGeneral.toFixed(2)}</div>`;
+        html += `<div style="margin-top:12px;font-weight:700;font-size:1.05em;">💰 Total general: $${totalGeneral.toFixed(2)}</div>`;
+        
+        console.log('✅ Renderizando HTML en contenedor');
         cont.innerHTML = html;
+        console.log('✅ Reporte de compras generado exitosamente');
     } catch (e) {
-        console.error('Error renderReporteCompras:', e);
-        cont.innerHTML = '<div class="item">Error al cargar compras. Revisa la consola para detalles.</div>';
+        console.error('❌ Error renderReporteCompras:', e);
+        console.error('   Stack:', e.stack);
+        cont.innerHTML = '<div class="item">❌ Error al cargar compras: ' + e.message + '</div>';
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -1603,17 +1680,35 @@ window.switchReporteTab = function(tabName) {
 
 // Listeners para reportes
 // Adjuntar listeners y comportamientos de reportes inmediatamente (script se carga al final del body)
-(function attachReportListeners(){
+function attachReportListeners(){
+    console.log('Iniciando attachReportListeners - DOM Estado:', document.readyState);
+    
     // Listener para botón de reporte de inventario
     const btnReporteInventario = document.getElementById('btnReporteInventario');
     if (btnReporteInventario) {
-        btnReporteInventario.addEventListener('click', renderReporteInventario);
+        console.log('✓ Encontrado btnReporteInventario');
+        btnReporteInventario.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Clicked btnReporteInventario');
+            renderReporteInventario();
+        });
+    } else {
+        console.log('✗ btnReporteInventario no encontrado');
     }
 
     // Listener para botón de reporte de compras
     const btnReporteCompras = document.getElementById('btnReporteCompras');
     if (btnReporteCompras) {
-        btnReporteCompras.addEventListener('click', renderReporteCompras);
+        console.log('✓ Encontrado btnReporteCompras');
+        btnReporteCompras.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Click en btnReporteCompras - iniciando renderReporteCompras');
+            renderReporteCompras();
+        });
+    } else {
+        console.log('✗ btnReporteCompras no encontrado');
     }
 
     // Listener para select de temporada (en reportes)
@@ -1723,7 +1818,15 @@ window.switchReporteTab = function(tabName) {
             }
         });
     }
-})();
+}
+
+// Ejecutar attachReportListeners cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachReportListeners);
+} else {
+    // Si el script carga después de que el DOM esté listo
+    attachReportListeners();
+}
 
 // ==================== FUNCIONES GERENCIALES ====================
 // Cargar margen de ganancia por categoría con gráfica

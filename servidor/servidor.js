@@ -2364,6 +2364,8 @@ app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (re
     const start = req.query.start || null;
     const end = req.query.end || null;
     
+    console.log('📊 Reporte de compras solicitado - Período:', { start, end });
+    
     let query = `
       SELECT 
         c.id_compra,
@@ -2385,21 +2387,29 @@ app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (re
     const params = [];
     
     if (start) {
-      query += ' AND c.fecha_compra >= ?';
-      params.push(start + ' 00:00:00');
+      query += ' AND DATE(c.fecha_compra) >= ?';
+      params.push(start);
+      console.log('  - Fecha inicio:', start);
     }
     if (end) {
-      query += ' AND c.fecha_compra <= ?';
-      params.push(end + ' 23:59:59');
+      query += ' AND DATE(c.fecha_compra) <= ?';
+      params.push(end);
+      console.log('  - Fecha fin:', end);
     }
     
     query += ' ORDER BY c.fecha_compra DESC, c.id_compra, dc.id_producto';
     
+    console.log('  - Query:', query);
+    console.log('  - Parámetros:', params);
+    
     const [rows] = await pool.query(query, params);
+    
+    console.log('  - Filas obtenidas de la BD:', rows.length);
 
     // Agrupar por proveedor > compra > líneas
     const grupos = {};
     let totalGeneral = 0;
+    let comprasCount = 0;
     
     rows.forEach(row => {
       const prov = row.proveedor || 'Sin proveedor';
@@ -2419,9 +2429,10 @@ app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (re
           lineas: []
         };
         grupos[prov].compras.push(compra);
+        comprasCount++;
       }
       
-      // Agregar línea si existe
+      // Agregar línea si existe (product existe)
       if (row.id_producto) {
         compra.lineas.push({
           id_producto: row.id_producto,
@@ -2435,10 +2446,25 @@ app.get('/api/reportes/compras-periodo', requiereRol('administrador'), async (re
       }
     });
     
-    res.json({ ok: true, grupos: Object.values(grupos), total_general: totalGeneral });
+    console.log('  - Compras agrupadas:', comprasCount);
+    console.log('  - Proveedores únicos:', Object.keys(grupos).length);
+    console.log('  - Total general calculado: $' + totalGeneral.toFixed(2));
+    
+    res.json({ 
+      ok: true, 
+      grupos: Object.values(grupos), 
+      total_general: totalGeneral,
+      compras_count: comprasCount
+    });
   } catch (e) {
-    console.error('Error /api/reportes/compras-periodo:', e.message || e);
-    res.status(500).json({ ok: false, grupos: [], error: 'Error del servidor: ' + e.message });
+    console.error('❌ Error /api/reportes/compras-periodo:', e.message || e);
+    console.error('   Stack:', e.stack);
+    res.status(500).json({ 
+      ok: false, 
+      grupos: [], 
+      error: 'Error del servidor: ' + e.message,
+      compras_count: 0
+    });
   }
 });
 
