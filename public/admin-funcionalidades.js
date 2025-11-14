@@ -808,7 +808,13 @@ async function cargarVentasAdmin(busqueda = '') {
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
 
-        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include' });
+        // Usar AbortController para evitar que la petición quede colgada indefinidamente
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
+        const res = await fetch(`/api/admin/ventas?year=${year}&month=${month}`, { credentials: 'include', signal: controller.signal });
+        clearTimeout(timeout);
+
         if (!res.ok) {
             if (res.status === 401) {
                 lista.innerHTML = '<div class="item" style="color:#dc2626;">🔒 No autenticado. Inicia sesión para ver ventas.</div>';
@@ -818,7 +824,15 @@ async function cargarVentasAdmin(busqueda = '') {
             return;
         }
 
-        const data = await res.json();
+        let data;
+        try {
+            data = await res.json();
+        } catch (e) {
+            console.error('Respuesta no JSON al cargar ventas:', e);
+            lista.innerHTML = '<div class="item">Error: respuesta inesperada del servidor.</div>';
+            return;
+        }
+
         const ventas = Array.isArray(data.ventas) ? data.ventas : [];
 
         if (ventas.length === 0) {
@@ -848,10 +862,6 @@ async function cargarVentasAdmin(busqueda = '') {
             const resDetalle = await fetch(`/api/reportes/ventas-detalle?year=${year}&month=${month}`, { credentials: 'include' });
             if (resDetalle.ok) {
                 const dataDetalle = await resDetalle.json();
-                if (dataDetalle && dataDetalle.ventas && Array.isArray(dataDetalle.ventas) && dataDetalle.ventas.length > 0) {
-                    // reemplazar listado si el endpoint provee una versión enriquecida
-                    // (mantener el html previo si no aplica)
-                }
                 if (dataDetalle && dataDetalle.totales) {
                     const totales = dataDetalle.totales;
                     html += `
@@ -874,6 +884,11 @@ async function cargarVentasAdmin(busqueda = '') {
         lista.innerHTML = html;
 
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('Timeout al cargar ventas admin');
+            lista.innerHTML = '<div class="item">La petición de ventas tardó demasiado. Intenta recargar la página.</div>';
+            return;
+        }
         console.error('Error cargando ventas admin:', error);
         lista.innerHTML = '<div class="item">Error de conexión al cargar ventas</div>';
     }
@@ -1240,26 +1255,39 @@ async function renderReporteInventario() {
 
 // Ahora manejada en reportes.js - mantener para compatibilidad
 async function renderReporteCompras() {
-    // Llamar a la función en reportes.js
-    if (typeof window.renderReporteCompras !== 'function') {
-        console.error('renderReporteCompras no está disponible en reportes.js');
+    // Delegar a la implementación en reportes.js
+    if (typeof window.renderReporteCompras === 'function') {
+        try { await window.renderReporteCompras(); } catch (e) { console.error('Error delegando renderReporteCompras:', e); }
         return;
     }
+    console.error('renderReporteCompras no está disponible en reportes.js');
 }
 
 // Manejada en reportes.js
 async function renderReporteTemporada() {
-    // Llamar función en reportes.js
+    if (typeof fetchVentasTemporada === 'function') {
+        try { await fetchVentasTemporada('actual'); } catch (e) { console.error('Error delegando renderReporteTemporada:', e); }
+        return;
+    }
+    console.error('fetchVentasTemporada no está disponible en reportes.js');
 }
 
 // Manejada en reportes.js
 async function renderReporteRotacion() {
-    // Llamar función en reportes.js
+    if (typeof cargarRotacionInventario === 'function') {
+        try { await cargarRotacionInventario(); } catch (e) { console.error('Error delegando renderReporteRotacion:', e); }
+        return;
+    }
+    console.error('cargarRotacionInventario no está disponible en reportes.js');
 }
 
 // Manejada en reportes.js
 async function renderReporteClientes() {
-    // Llamar función en reportes.js
+    if (typeof cargarClientes === 'function') {
+        try { await cargarClientes(); } catch (e) { console.error('Error delegando renderReporteClientes:', e); }
+        return;
+    }
+    console.error('cargarClientes no está disponible en reportes.js');
 }
 
 function exportarReporteUtilidad() {

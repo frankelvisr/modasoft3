@@ -50,9 +50,11 @@
                 panelEl.style.flexDirection = 'column';
             }
             
-            // Activar link del sidebar
+            // Activar link del sidebar (comparación exacta del argumento de switchTab)
             sidebarLinks.forEach(link => {
-                if (link.getAttribute('onclick') && link.getAttribute('onclick').includes(linkTab)) {
+                const onclick = link.getAttribute('onclick') || '';
+                const m = onclick.match(/switchTab\(['\"]([^'\"]+)['\"]\)/);
+                if (m && m[1] === linkTab) {
                     link.classList.add('active');
                 }
             });
@@ -65,6 +67,18 @@
             if (tab === 'contabilidad') {
                 setTimeout(() => {
                     if (typeof cargarIngresos === 'function') cargarIngresos();
+                }, 100);
+            }
+            // Cargar gestión de compras
+            if (tab === 'compras') {
+                setTimeout(() => {
+                    if (typeof cargarCompras === 'function') cargarCompras();
+                }, 100);
+            }
+            // Cargar gestión de ventas
+            if (tab === 'ventas') {
+                setTimeout(() => {
+                    if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
                 }, 100);
             }
             // Cargar cuentas por pagar
@@ -93,7 +107,7 @@
             }
             if (tab === 'reporte-ventas') {
                 setTimeout(() => {
-                    if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
+                    if (typeof cargarVentasReporte === 'function') cargarVentasReporte();
                 }, 100);
             }
             if (tab === 'reporte-clientes') {
@@ -177,7 +191,7 @@
                     if (typeof renderReporteCompras === 'function') renderReporteCompras();
                     break;
                 case 'ventas':
-                    if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
+                    if (typeof cargarVentasReporte === 'function') cargarVentasReporte();
                     break;
                 case 'clientes':
                     if (typeof cargarClientes === 'function') cargarClientes();

@@ -165,7 +165,7 @@ window.exportarComprasACSV = function() {
 };
 
 // ==================== REPORTE DE VENTAS ====================
-async function cargarVentasAdmin(busqueda = '') {
+async function cargarVentasReporte(busqueda = '') {
     const lista = document.getElementById('reporteVentas');
     if (!lista) {
         console.warn('Contenedor reporteVentas no encontrado');
@@ -799,7 +799,7 @@ function switchReporteTab(tab) {
                 if (typeof renderReporteCompras === 'function') renderReporteCompras();
                 break;
             case 'ventas':
-                if (typeof cargarVentasAdmin === 'function') cargarVentasAdmin();
+                if (typeof cargarVentasReporte === 'function') cargarVentasReporte();
                 break;
             case 'clientes':
                 if (typeof cargarClientes === 'function') cargarClientes();
