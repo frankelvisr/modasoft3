@@ -74,7 +74,21 @@ async function renderReporteCompras() {
         </div>`;
 
         cont.innerHTML = html;
-        
+
+        // Actualizar tbody fallback si existe (compatibilidad con plantillas anteriores)
+        const tbodyCompras = document.getElementById('tbodyReporteCompras');
+        if (tbodyCompras) {
+            tbodyCompras.innerHTML = data.compras.map(c => `
+                <tr>
+                    <td>${c.id_compra}</td>
+                    <td>${new Date(c.fecha_compra).toLocaleDateString('es-VE')}</td>
+                    <td>${c.nombre_proveedor || 'N/A'}</td>
+                    <td style="text-align:right;">$${parseFloat(c.total_compra||0).toFixed(2)}</td>
+                    <td>${c.estado_pago || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
         // Agregar botones de exportación
         const btnContainer = document.createElement('div');
         btnContainer.style.cssText = 'margin-top:20px;display:flex;gap:10px;';
@@ -247,7 +261,21 @@ async function cargarVentasReporte(busqueda = '') {
         </div>`;
 
         lista.innerHTML = html;
-        
+
+        // Actualizar tbody fallback si existe
+        const tbodyVentas = document.getElementById('tbodyReporteVentas');
+        if (tbodyVentas) {
+            tbodyVentas.innerHTML = ventas.map(v => `
+                <tr>
+                    <td>#${v.id_venta}</td>
+                    <td>${v.cliente || 'Cliente General'}</td>
+                    <td>${new Date(v.fecha_hora).toLocaleDateString('es-VE')}</td>
+                    <td style="text-align:right;">$${parseFloat(v.total_venta||0).toFixed(2)}</td>
+                    <td>${v.tipo_pago || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
         // Agregar botones de exportación
         const btnContainer = document.createElement('div');
         btnContainer.style.cssText = 'margin-top:20px;display:flex;gap:10px;';
@@ -421,7 +449,20 @@ async function cargarClientes(busqueda = '') {
 
         // Mostrar tabla
         lista.innerHTML = html;
-        
+
+        // Actualizar tbody fallback si existe
+        const tbodyClientes = document.getElementById('tbodyReporteClientes');
+        if (tbodyClientes) {
+            tbodyClientes.innerHTML = clientes.map(c => `
+                <tr>
+                    <td><strong>${(c.nombre || 'N/A').toUpperCase()}</strong></td>
+                    <td>${c.cedula || 'N/A'}</td>
+                    <td>${c.email || 'N/A'}</td>
+                    <td>${c.telefono || 'N/A'}</td>
+                </tr>
+            `).join('');
+        }
+
         // Agregar botón de exportación después
         const btnContainer = document.createElement('div');
         btnContainer.style.cssText = 'margin-top:20px;display:flex;gap:10px;';
